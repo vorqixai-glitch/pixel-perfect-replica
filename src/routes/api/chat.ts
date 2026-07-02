@@ -83,7 +83,7 @@ export const Route = createFileRoute("/api/chat")({
           model: provider("google/gemini-3-flash-preview"),
           system:
             "You are Emergent, a fast, precise AI assistant. Answer clearly and use Markdown (headings, lists, code fences) when it helps readability. Keep replies focused.",
-          messages: convertToModelMessages(messages),
+          messages: await convertToModelMessages(messages),
         });
 
         return result.toUIMessageStreamResponse({
