@@ -7,11 +7,38 @@ import { getThreadMessages } from "@/lib/chat.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ArrowUp, Loader2, Sparkles, Square } from "lucide-react";
+import {
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Globe,
+  ImageIcon,
+  Loader2,
+  Sparkles,
+  Square,
+  Wrench,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type DbMessage = { id: string; role: string; content: string; created_at: string };
+
+const MODELS = [
+  { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash", hint: "Fast · default" },
+  { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", hint: "Smarter" },
+  { id: "openai/gpt-5-mini", label: "GPT-5 mini", hint: "Balanced" },
+  { id: "openai/gpt-5", label: "GPT-5", hint: "Most capable" },
+];
 
 function toUIMessage(row: DbMessage): UIMessage {
   return {
@@ -21,11 +48,15 @@ function toUIMessage(row: DbMessage): UIMessage {
   };
 }
 
-function textOf(m: UIMessage): string {
-  return (m.parts ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
-}
-
-export function ChatView({ threadId }: { threadId: string }) {
+export function ChatView({
+  threadId,
+  onOpenArtifact,
+  activeArtifactId,
+}: {
+  threadId: string;
+  onOpenArtifact: (id: string) => void;
+  activeArtifactId: string | null;
+}) {
   const getMsgs = useServerFn(getThreadMessages);
   const messagesQ = useQuery({
     queryKey: ["thread-messages", threadId],
@@ -56,7 +87,10 @@ export function ChatView({ threadId }: { threadId: string }) {
     <ChatViewInner
       threadId={threadId}
       title={messagesQ.data?.thread.title ?? "New chat"}
+      initialModel={messagesQ.data?.thread.model ?? MODELS[0].id}
       initialMessages={initialMessages}
+      onOpenArtifact={onOpenArtifact}
+      activeArtifactId={activeArtifactId}
     />
   );
 }
@@ -64,12 +98,24 @@ export function ChatView({ threadId }: { threadId: string }) {
 function ChatViewInner({
   threadId,
   title,
+  initialModel,
   initialMessages,
+  onOpenArtifact,
+  activeArtifactId,
 }: {
   threadId: string;
   title: string;
+  initialModel: string;
   initialMessages: UIMessage[];
+  onOpenArtifact: (id: string) => void;
+  activeArtifactId: string | null;
 }) {
+  const [model, setModel] = useState(initialModel);
+  const modelRef = useRef(model);
+  useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -80,7 +126,7 @@ function ChatViewInner({
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            body: { threadId: id, messages },
+            body: { threadId: id, messages, model: modelRef.current },
             headers,
           };
         },
@@ -98,6 +144,28 @@ function ChatViewInner({
   useEffect(() => {
     if (error) toast.error(error.message);
   }, [error]);
+
+  // Auto-open newly created artifacts
+  const openedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const m of messages) {
+      for (const part of m.parts ?? []) {
+        const p = part as { type: string; toolName?: string; output?: unknown };
+        if (
+          typeof p.type === "string" &&
+          p.type.startsWith("tool-create_artifact") &&
+          p.output &&
+          typeof p.output === "object"
+        ) {
+          const out = p.output as { id?: string };
+          if (out.id && !openedRef.current.has(out.id)) {
+            openedRef.current.add(out.id);
+            onOpenArtifact(out.id);
+          }
+        }
+      }
+    }
+  }, [messages, onOpenArtifact]);
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -130,13 +198,14 @@ function ChatViewInner({
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 py-8 space-y-6">
-          {messages.length === 0 && (
-            <div className="text-center text-muted-foreground py-16">
-              <p className="text-sm">Ask anything to get started.</p>
-            </div>
-          )}
+          {messages.length === 0 && <EmptyState />}
           {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
+            <MessageBubble
+              key={m.id}
+              message={m}
+              onOpenArtifact={onOpenArtifact}
+              activeArtifactId={activeArtifactId}
+            />
           ))}
           {status === "submitted" && (
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -148,11 +217,8 @@ function ChatViewInner({
       </div>
 
       <div className="border-t border-border">
-        <form
-          onSubmit={handleSubmit}
-          className="mx-auto max-w-3xl px-6 py-4"
-        >
-          <div className="relative rounded-2xl border border-input bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring">
+        <form onSubmit={handleSubmit} className="mx-auto max-w-3xl px-6 py-4">
+          <div className="rounded-2xl border border-input bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring">
             <Textarea
               ref={inputRef}
               value={input}
@@ -165,9 +231,23 @@ function ChatViewInner({
               }}
               placeholder="Message Emergent…"
               rows={1}
-              className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent pr-14 focus-visible:ring-0 shadow-none"
+              className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none"
             />
-            <div className="absolute right-2 bottom-2">
+            <div className="flex items-center justify-between px-2 pb-2">
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger className="h-8 w-auto border-0 bg-transparent shadow-none focus:ring-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODELS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <span className="font-medium">{m.label}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">{m.hint}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               {isLoading ? (
                 <Button
                   type="button"
@@ -191,7 +271,7 @@ function ChatViewInner({
             </div>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground text-center">
-            Emergent can make mistakes. Verify important information.
+            Web search, image generation, and artifacts are enabled.
           </p>
         </form>
       </div>
@@ -199,21 +279,237 @@ function ChatViewInner({
   );
 }
 
-function MessageBubble({ message }: { message: UIMessage }) {
-  const text = textOf(message);
-  const isUser = message.role === "user";
+function EmptyState() {
+  const items = [
+    { icon: FileText, title: "Draft a plan", hint: '"Write a launch plan as a markdown artifact"' },
+    { icon: Globe, title: "Search the web", hint: '"What happened in AI this week?"' },
+    { icon: ImageIcon, title: "Generate an image", hint: '"An isometric spaceship illustration"' },
+    { icon: Wrench, title: "Build & preview HTML", hint: '"A landing page for a coffee brand"' },
+  ];
   return (
-    <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
-      <div
-        className={cn(
-          "max-w-[85%] whitespace-pre-wrap text-[15px] leading-relaxed",
-          isUser
-            ? "rounded-2xl bg-primary text-primary-foreground px-4 py-2.5"
-            : "text-foreground",
-        )}
-      >
-        {text || (message.role === "assistant" ? "…" : "")}
+    <div className="pt-8">
+      <div className="text-center mb-8">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 mb-3">
+          <Sparkles className="h-6 w-6 text-primary" />
+        </div>
+        <h2 className="text-xl font-semibold">How can I help?</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Ask, research, generate — with tools baked in.
+        </p>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        {items.map((it) => (
+          <div
+            key={it.title}
+            className="rounded-xl border border-border p-3 hover:bg-accent/50 transition"
+          >
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <it.icon className="h-4 w-4 text-primary" /> {it.title}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{it.hint}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type ToolPart = {
+  type: string;
+  toolName?: string;
+  toolCallId?: string;
+  state?: string;
+  input?: unknown;
+  output?: unknown;
+  errorText?: string;
+};
+
+function MessageBubble({
+  message,
+  onOpenArtifact,
+  activeArtifactId,
+}: {
+  message: UIMessage;
+  onOpenArtifact: (id: string) => void;
+  activeArtifactId: string | null;
+}) {
+  const isUser = message.role === "user";
+  const parts = message.parts ?? [];
+
+  if (isUser) {
+    const text = parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] whitespace-pre-wrap text-[15px] leading-relaxed rounded-2xl bg-primary text-primary-foreground px-4 py-2.5">
+          {text}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {parts.map((part, i) => {
+        if (part.type === "text") {
+          return (
+            <div
+              key={i}
+              className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-pre:my-2 prose-headings:mt-4"
+            >
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
+            </div>
+          );
+        }
+        const p = part as ToolPart;
+        if (typeof p.type === "string" && p.type.startsWith("tool-")) {
+          const name = p.type.slice("tool-".length);
+          return (
+            <ToolCallBlock
+              key={i}
+              name={name}
+              part={p}
+              onOpenArtifact={onOpenArtifact}
+              activeArtifactId={activeArtifactId}
+            />
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+function toolMeta(name: string) {
+  switch (name) {
+    case "create_artifact":
+      return { label: "Creating artifact", Icon: FileText };
+    case "update_artifact":
+      return { label: "Updating artifact", Icon: FileText };
+    case "web_search":
+      return { label: "Searching the web", Icon: Globe };
+    case "generate_image":
+      return { label: "Generating image", Icon: ImageIcon };
+    default:
+      return { label: name, Icon: Wrench };
+  }
+}
+
+function ToolCallBlock({
+  name,
+  part,
+  onOpenArtifact,
+  activeArtifactId,
+}: {
+  name: string;
+  part: ToolPart;
+  onOpenArtifact: (id: string) => void;
+  activeArtifactId: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const { label, Icon } = toolMeta(name);
+  const isDone = part.state === "output-available" || part.state === "output-error";
+  const isError =
+    part.state === "output-error" ||
+    (part.output && typeof part.output === "object" && "error" in (part.output as object));
+
+  // Special rich renderers for known outputs
+  const output = part.output as
+    | { id?: string; title?: string; kind?: string; version?: number; url?: string; prompt?: string; results?: Array<{ title: string; url: string; snippet: string }>; error?: string }
+    | undefined;
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 text-sm overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/60"
+      >
+        {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        <Icon className="h-4 w-4 text-primary" />
+        <span className="flex-1 text-left truncate">
+          {label}
+          {output?.title ? ` — ${output.title}` : ""}
+          {output?.results ? ` — ${output.results.length} result${output.results.length === 1 ? "" : "s"}` : ""}
+        </span>
+        {!isDone && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        {isError && <span className="text-xs text-destructive">error</span>}
+      </button>
+
+      {/* Rich inline preview for artifact/image regardless of open */}
+      {(name === "create_artifact" || name === "update_artifact") && output?.id && (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={() => onOpenArtifact(output.id!)}
+            className={cn(
+              "w-full text-left rounded-md border border-border p-3 bg-background hover:border-primary transition",
+              activeArtifactId === output.id && "border-primary ring-1 ring-primary/40",
+            )}
+          >
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              {output.kind}{output.version ? ` · v${output.version}` : ""}
+            </div>
+            <div className="font-medium">{output.title}</div>
+            <div className="text-xs text-primary mt-1">Open in side panel →</div>
+          </button>
+        </div>
+      )}
+
+      {name === "generate_image" && output?.url && (
+        <div className="px-3 pb-3">
+          <img
+            src={output.url}
+            alt={output.prompt ?? "generated"}
+            className="rounded-md border border-border max-h-96"
+          />
+        </div>
+      )}
+
+      {name === "web_search" && output?.results && output.results.length > 0 && (
+        <div className="px-3 pb-3 space-y-2">
+          {output.results.slice(0, 4).map((r, i) => (
+            <a
+              key={i}
+              href={r.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-md border border-border p-2 hover:border-primary bg-background"
+            >
+              <div className="text-sm font-medium truncate">{r.title}</div>
+              <div className="text-xs text-muted-foreground truncate">{r.url}</div>
+              <div className="text-xs text-muted-foreground line-clamp-2 mt-1">{r.snippet}</div>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div className="px-3 pb-3 border-t border-border/60 pt-2 space-y-2">
+          {part.input != null && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Input
+              </div>
+              <pre className="text-xs bg-background rounded p-2 overflow-auto max-h-40">
+                {JSON.stringify(part.input, null, 2)}
+              </pre>
+            </div>
+          )}
+          {part.output != null && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Output
+              </div>
+              <pre className="text-xs bg-background rounded p-2 overflow-auto max-h-60">
+                {JSON.stringify(part.output, null, 2)}
+              </pre>
+            </div>
+          )}
+          {part.errorText && (
+            <div className="text-xs text-destructive">{part.errorText}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
