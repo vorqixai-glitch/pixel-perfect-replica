@@ -410,7 +410,7 @@ function ToolCallBlock({
   const isDone = part.state === "output-available" || part.state === "output-error";
   const isError =
     part.state === "output-error" ||
-    (part.output && typeof part.output === "object" && "error" in (part.output as object));
+    Boolean(part.output && typeof part.output === "object" && "error" in (part.output as object));
 
   // Special rich renderers for known outputs
   const output = part.output as

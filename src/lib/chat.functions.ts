@@ -58,7 +58,7 @@ export const getThreadMessages = createServerFn({ method: "POST" })
     // Verify ownership through RLS: threads select filters by owner.
     const { data: thread, error: tErr } = await context.supabase
       .from("threads")
-      .select("id,title")
+      .select("id,title,model")
       .eq("id", data.threadId)
       .maybeSingle();
     if (tErr) throw new Error(tErr.message);
