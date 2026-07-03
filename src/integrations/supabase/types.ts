@@ -14,11 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      artifacts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          language: string | null
+          thread_id: string
+          title: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          kind: string
+          language?: string | null
+          thread_id: string
+          title?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          language?: string | null
+          thread_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifacts_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
           created_at: string
           id: string
+          model: string | null
           role: string
           thread_id: string
         }
@@ -26,6 +74,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          model?: string | null
           role: string
           thread_id: string
         }
@@ -33,6 +82,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          model?: string | null
           role?: string
           thread_id?: string
         }
@@ -71,6 +121,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          model: string
           title: string
           updated_at: string
           user_id: string
@@ -78,6 +129,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          model?: string
           title?: string
           updated_at?: string
           user_id: string
@@ -85,6 +137,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          model?: string
           title?: string
           updated_at?: string
           user_id?: string

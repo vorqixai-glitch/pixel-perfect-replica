@@ -1,55 +1,47 @@
+## Goal
+Turn the chat clone into a genuinely differentiated AI workspace. Ship in 3 batches so each batch is fully working before the next.
 
-## What we're building
+## Batch 1 — Agentic + Artifacts (this turn)
+The highest wow-factor per hour. Makes the product feel unlike ChatGPT immediately.
 
-A fully working "Emergent-style" AI chat workspace: users log in, create chat threads, and talk to an AI assistant with streaming responses. Layout mirrors the uploaded reference — left sidebar with threads, main chat panel, composer at the bottom. No fake data, real backend end to end.
+1. **Tool calling in the AI route**
+   - `web_search` tool (via Lovable AI Gateway — Gemini native grounding, or fallback to a search API)
+   - `generate_image` tool (Lovable AI image gen, renders inline)
+   - `create_artifact` tool (opens the artifacts pane)
+   - Render tool calls in chat with the AI Elements `Tool` component (collapsed by default)
 
-Scope note: this is a chat-based AI assistant (not a full code-generating app builder — that's weeks of work). Everything wired here is real: real auth, real DB, real AI streaming.
+2. **Artifacts pane**
+   - Split-view: chat on left, artifact on right when open
+   - Types: `markdown`, `code` (with syntax highlight), `html` (sandboxed iframe preview)
+   - Stored in a new `artifacts` table, versioned, tied to a thread
+   - Model can create/update artifacts via tool call; user sees live updates
+   - Toggle open/close, copy, download
 
-## Stack
+3. **Multi-model selector**
+   - Dropdown in composer: Gemini 2.5 Flash (default, fast) / Gemini 2.5 Pro (smart) / GPT-5 (reasoning)
+   - Persist per-thread; show which model answered each message
 
-- **Frontend**: TanStack Start (existing), Tailwind v4, AI Elements components
-- **Backend**: Lovable Cloud (Postgres + Auth) for users/threads/messages, TanStack server route `/api/chat` for AI streaming
-- **AI**: Lovable AI Gateway via AI SDK, default model `google/gemini-3-flash-preview`
+## Batch 2 — Projects + Memory (next turn, on request)
+4. **Projects**: group threads under a project with shared system prompt + files
+5. **Persistent memory**: model extracts user facts into a `memories` table, injected into every system prompt
+6. **File uploads**: PDFs/images attached to messages, vision + doc parsing
 
-## Steps
+## Batch 3 — Polish (final turn, on request)
+7. Message editing + branching (fork conversation)
+8. Public shareable read-only chat links
+9. ⌘K command palette, slash commands, prompt library
+10. Voice input (Web Speech API)
 
-1. **Enable Lovable Cloud** + provision `LOVABLE_API_KEY`.
-2. **Auth**: enable Email/Password + Google. Add `/auth` public page (sign in + sign up tabs). Add managed `_authenticated` gate.
-3. **Database migration**:
-   - `profiles(id, display_name, avatar_url, created_at)` + trigger from `auth.users`
-   - `threads(id, user_id, title, created_at, updated_at)` with RLS scoped to `auth.uid()`
-   - `messages(id, thread_id, role, content, created_at)` with RLS via thread ownership
-   - GRANTs to `authenticated`, `service_role`
-4. **Server functions** (`src/lib/chat.functions.ts` with `requireSupabaseAuth`):
-   - `listThreads`, `createThread`, `renameThread`, `deleteThread`
-   - `getThreadMessages(threadId)`
-   - `saveAssistantMessage(threadId, content)` (called after stream ends)
-5. **Streaming route** `src/routes/api/chat.ts`: validates bearer token → loads thread messages → streams via AI SDK → persists user message + final assistant message.
-6. **Routes**:
-   - `/` → redirects to `/auth` or `/chat`
-   - `/auth` — email + Google sign-in
-   - `/_authenticated/chat/` — empty state, create-thread CTA
-   - `/_authenticated/chat/$threadId` — the chat workspace
-7. **UI** using AI Elements (`conversation`, `message`, `prompt-input`, `shimmer`):
-   - Left sidebar: workspace header, "New chat" button, thread list (rename/delete on hover), user menu with sign-out at the bottom
-   - Main: `Conversation` transcript, streaming assistant messages with markdown, `PromptInput` composer
-   - Auto-title new thread from first user message (server-side, one-shot AI call)
-8. **Metadata**: real title/description in `__root.tsx` ("Emergent — AI chat workspace" or similar), leaf head on `/auth`.
-9. **Verify**: Playwright sign-up → create thread → send message → observe streamed reply → reload → messages persist → sign out.
+## Technical notes (Batch 1)
+- New table `artifacts` (id, thread_id, user_id, kind, title, content, version, created_at)
+- Extend `messages` with `model` column (text nullable)
+- `/api/chat` route: register tools with AI SDK `tool()` + `stopWhen: stepCountIs(50)`; web_search calls Gemini grounding, create_artifact writes to DB and returns id
+- New component `ArtifactPane` in chat layout, controlled by URL query param `?artifact=<id>`
+- Model selector: small `<Select>` in `PromptInput` footer, value stored in thread row (`model` column)
 
-## Technical details
+## Out of scope for Batch 1
+- Auth for shared links (Batch 3)
+- File upload UI (Batch 2)
+- Memory extraction (Batch 2)
 
-- Bearer attach: append `attachSupabaseAuth` in `src/start.ts` functionMiddleware.
-- Chat route reads bearer from `Authorization` header, calls `supabase.auth.getUser()` with a per-request client to authorize, then uses `supabaseAdmin` (loaded via `await import`) to insert messages.
-- `useChat` transport posts to `/api/chat` with `Authorization: Bearer <access_token>` from `supabase.auth.getSession()`.
-- Thread route keys the `useChat` instance on `threadId`; initial messages hydrated from `getThreadMessages` via `useQuery` in loader.
-- Message rendering iterates `message.parts` and renders text parts through `MessageResponse` (markdown).
-- Errors: surface 429 (rate limit) and 402 (credits) as toasts.
-
-## Out of scope (explicit)
-
-- No code generation / live preview pane / sandbox execution (that's a Lovable-scale build).
-- No file uploads, no multi-modal input.
-- No teams/orgs — single-user workspaces.
-
-Ready to build on approval.
+Approving this plan runs Batch 1 only. I'll ping you to confirm before starting Batch 2.
