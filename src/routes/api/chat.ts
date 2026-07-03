@@ -82,7 +82,7 @@ export const Route = createFileRoute("/api/chat")({
               role: "user",
               content: text,
             });
-            const updates: Record<string, string> = {};
+            const updates: { title?: string; model?: string } = {};
             if (thread.title === "New chat") updates.title = text.slice(0, 60);
             if (thread.model !== model) updates.model = model;
             if (Object.keys(updates).length > 0) {
