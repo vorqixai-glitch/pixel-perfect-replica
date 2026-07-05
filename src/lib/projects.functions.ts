@@ -58,7 +58,7 @@ export const updateProject = createServerFn({ method: "POST" })
     if (data.system_prompt !== undefined) patch.system_prompt = data.system_prompt;
     const { error } = await context.supabase
       .from("projects")
-      .update(patch)
+      .update(patch as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
