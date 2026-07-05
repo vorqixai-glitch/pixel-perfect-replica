@@ -92,6 +92,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Emergent — AI chat workspace" },
+      { name: "description", content: "Emergent is a fast, focused AI chat workspace. Create threads, talk to an AI assistant, and keep your conversations in one place." },
+      { property: "og:description", content: "Emergent is a fast, focused AI chat workspace. Create threads, talk to an AI assistant, and keep your conversations in one place." },
+      { name: "twitter:description", content: "Emergent is a fast, focused AI chat workspace. Create threads, talk to an AI assistant, and keep your conversations in one place." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d7be7f7a-27b5-44b8-abb3-9387724071e3/id-preview-bb0b3f69--fdc05e07-bb6c-47e0-b674-bc38b7f9538f.lovable.app-1783282584653.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d7be7f7a-27b5-44b8-abb3-9387724071e3/id-preview-bb0b3f69--fdc05e07-bb6c-47e0-b674-bc38b7f9538f.lovable.app-1783282584653.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
