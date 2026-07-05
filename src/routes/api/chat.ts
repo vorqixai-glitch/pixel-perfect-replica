@@ -66,11 +66,25 @@ export const Route = createFileRoute("/api/chat")({
 
         const { data: thread, error: tErr } = await supabase
           .from("threads")
-          .select("id,title,model")
+          .select("id,title,model,project_id")
           .eq("id", threadId)
           .maybeSingle();
         if (tErr) return new Response(tErr.message, { status: 500 });
         if (!thread) return new Response("Thread not found", { status: 404 });
+
+        let projectSystemPrompt: string | null = null;
+        let projectName: string | null = null;
+        if (thread.project_id) {
+          const { data: proj } = await supabase
+            .from("projects")
+            .select("name,system_prompt")
+            .eq("id", thread.project_id)
+            .maybeSingle();
+          if (proj) {
+            projectName = proj.name;
+            projectSystemPrompt = proj.system_prompt;
+          }
+        }
 
         // Persist last user message
         const lastUser = [...messages].reverse().find((m) => m.role === "user");
@@ -94,17 +108,25 @@ export const Route = createFileRoute("/api/chat")({
         const provider = createLovableAi(lovableKey);
         const tools = buildTools({ supabase, threadId, userId, lovableApiKey: lovableKey });
 
+        const systemParts = [
+          "You are Emergent, a fast, precise AI workspace assistant.",
+          "Answer clearly in Markdown (headings, lists, code fences).",
+          "You have tools:",
+          "- create_artifact / update_artifact: for docs, code, HTML pages. Open in a side panel.",
+          "- web_search: for current or uncertain facts. Cite the URLs you used.",
+          "- generate_image: for visuals when asked.",
+          "Prefer create_artifact over pasting long code blocks inline.",
+        ];
+        if (projectName) {
+          systemParts.push(`This chat is part of the project "${projectName}".`);
+        }
+        if (projectSystemPrompt) {
+          systemParts.push(`Project instructions:\n${projectSystemPrompt}`);
+        }
+
         const result = streamText({
           model: provider(model),
-          system: [
-            "You are Emergent, a fast, precise AI workspace assistant.",
-            "Answer clearly in Markdown (headings, lists, code fences).",
-            "You have tools:",
-            "- create_artifact / update_artifact: for docs, code, HTML pages. Open in a side panel.",
-            "- web_search: for current or uncertain facts. Cite the URLs you used.",
-            "- generate_image: for visuals when asked.",
-            "Prefer create_artifact over pasting long code blocks inline.",
-          ].join(" "),
+          system: systemParts.join(" "),
           messages: await convertToModelMessages(messages),
           tools,
           stopWhen: stepCountIs(50),
