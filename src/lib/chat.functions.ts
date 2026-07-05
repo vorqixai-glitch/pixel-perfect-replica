@@ -7,7 +7,7 @@ export const listThreads = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("threads")
-      .select("id,title,updated_at,created_at")
+      .select("id,title,updated_at,created_at,project_id")
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -16,13 +16,22 @@ export const listThreads = createServerFn({ method: "GET" })
 export const createThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ title: z.string().max(120).optional() }).parse(d),
+    z
+      .object({
+        title: z.string().max(120).optional(),
+        project_id: z.string().uuid().nullable().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("threads")
-      .insert({ user_id: context.userId, title: data.title ?? "New chat" })
-      .select("id,title,updated_at,created_at")
+      .insert({
+        user_id: context.userId,
+        title: data.title ?? "New chat",
+        project_id: data.project_id ?? null,
+      })
+      .select("id,title,updated_at,created_at,project_id")
       .single();
     if (error) throw new Error(error.message);
     return row;
