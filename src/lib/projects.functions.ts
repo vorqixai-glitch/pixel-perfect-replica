@@ -52,13 +52,17 @@ export const updateProject = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      name?: string;
+      description?: string | null;
+      system_prompt?: string | null;
+    } = {};
     if (data.name !== undefined) patch.name = data.name;
     if (data.description !== undefined) patch.description = data.description;
     if (data.system_prompt !== undefined) patch.system_prompt = data.system_prompt;
     const { error } = await context.supabase
       .from("projects")
-      .update(patch as never)
+      .update(patch)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
