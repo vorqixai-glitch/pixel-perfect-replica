@@ -1,7 +1,8 @@
-import { tool } from "ai";
+import { tool, generateText } from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { createLovableAi } from "@/lib/ai-gateway.server";
 
 type ToolCtx = {
   supabase: ReturnType<typeof createClient<Database>>;
@@ -10,21 +11,32 @@ type ToolCtx = {
   lovableApiKey: string;
 };
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractYouTubeId(input: string): string | null {
+  const m =
+    input.match(/(?:v=|\/shorts\/|youtu\.be\/|\/embed\/)([A-Za-z0-9_-]{11})/) ??
+    input.match(/^([A-Za-z0-9_-]{11})$/);
+  return m ? m[1] : null;
+}
+
 export function buildTools(ctx: ToolCtx) {
   return {
     create_artifact: tool({
       description:
-        "Create a new artifact (document, code snippet, or HTML page) that appears in a side panel next to the chat. Use for anything the user might want to iterate on, copy, or reuse — docs, code, HTML/CSS, reports, plans. Prefer this over a huge inline code block. Returns the artifact id.",
+        "Create a new artifact (document, code snippet, or HTML page) shown in a side panel. Prefer over huge inline code blocks. Returns the artifact id.",
       inputSchema: z.object({
-        title: z.string().describe("Short human title, max ~60 chars"),
-        kind: z
-          .enum(["markdown", "code", "html"])
-          .describe("markdown for docs, code for snippets, html for a runnable page"),
-        language: z
-          .string()
-          .optional()
-          .describe("If kind=code, the language, e.g. 'typescript', 'python'"),
-        content: z.string().describe("Full artifact body"),
+        title: z.string(),
+        kind: z.enum(["markdown", "code", "html"]),
+        language: z.string().optional(),
+        content: z.string(),
       }),
       execute: async ({ title, kind, language, content }) => {
         const { data, error } = await ctx.supabase
@@ -46,8 +58,7 @@ export function buildTools(ctx: ToolCtx) {
     }),
 
     update_artifact: tool({
-      description:
-        "Replace the content of an existing artifact by id. Bumps the version. Use when the user asks to iterate on an artifact you already created.",
+      description: "Replace the content of an existing artifact by id. Bumps the version.",
       inputSchema: z.object({
         id: z.string().uuid(),
         title: z.string().optional(),
@@ -77,13 +88,10 @@ export function buildTools(ctx: ToolCtx) {
 
     web_search: tool({
       description:
-        "Search the public web for current information. Returns short results (title, url, snippet). Use for anything time-sensitive, news, or facts you're unsure about. Cite the urls in your reply.",
-      inputSchema: z.object({
-        query: z.string().min(1).max(300),
-      }),
+        "Search the public web for current information. Returns short results. Cite the urls in your reply.",
+      inputSchema: z.object({ query: z.string().min(1).max(300) }),
       execute: async ({ query }) => {
         try {
-          // DuckDuckGo Instant Answer + Wikipedia summary — no API key required.
           const ddgRes = await fetch(
             `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
           );
@@ -93,7 +101,6 @@ export function buildTools(ctx: ToolCtx) {
             Heading?: string;
             RelatedTopics?: Array<{ Text?: string; FirstURL?: string }>;
           };
-
           const results: { title: string; url: string; snippet: string }[] = [];
           if (ddg.AbstractText && ddg.AbstractURL) {
             results.push({
@@ -103,12 +110,9 @@ export function buildTools(ctx: ToolCtx) {
             });
           }
           for (const t of (ddg.RelatedTopics ?? []).slice(0, 5)) {
-            if (t.Text && t.FirstURL) {
+            if (t.Text && t.FirstURL)
               results.push({ title: t.Text.slice(0, 80), url: t.FirstURL, snippet: t.Text });
-            }
           }
-
-          // Wikipedia fallback for zero-result cases
           if (results.length === 0) {
             const wikiRes = await fetch(
               `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`,
@@ -119,33 +123,164 @@ export function buildTools(ctx: ToolCtx) {
                 extract?: string;
                 content_urls?: { desktop?: { page?: string } };
               };
-              if (w.extract) {
+              if (w.extract)
                 results.push({
                   title: w.title ?? query,
-                  url: w.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(query)}`,
+                  url:
+                    w.content_urls?.desktop?.page ??
+                    `https://en.wikipedia.org/wiki/${encodeURIComponent(query)}`,
                   snippet: w.extract,
                 });
-              }
             }
           }
-
-          return {
-            query,
-            results: results.slice(0, 6),
-            note: results.length === 0 ? "No results found." : undefined,
-          };
+          return { query, results: results.slice(0, 6) };
         } catch (e) {
           return { error: e instanceof Error ? e.message : "Search failed" };
         }
       },
     }),
 
-    generate_image: tool({
+    fetch_url: tool({
       description:
-        "Generate an image from a text prompt. Returns a data URL that will render inline. Use when the user asks for an image, illustration, logo idea, etc.",
+        "Fetch a public webpage and return its readable text content (HTML stripped, ~8k chars max). Use to read a specific URL a user gave you or a promising web_search result.",
+      inputSchema: z.object({ url: z.string().url() }),
+      execute: async ({ url }) => {
+        try {
+          const res = await fetch(url, {
+            headers: { "User-Agent": "Mozilla/5.0 EmergentBot/1.0" },
+          });
+          if (!res.ok) return { error: `HTTP ${res.status}`, url };
+          const ct = res.headers.get("content-type") ?? "";
+          const raw = await res.text();
+          const text = ct.includes("html") ? stripHtml(raw) : raw;
+          return {
+            url,
+            content_type: ct,
+            text: text.slice(0, 8000),
+            truncated: text.length > 8000,
+          };
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : "Fetch failed" };
+        }
+      },
+    }),
+
+    youtube_transcript: tool({
+      description:
+        "Get the transcript of a YouTube video by URL or 11-char video id. Returns plain text (up to ~10k chars).",
+      inputSchema: z.object({ url_or_id: z.string() }),
+      execute: async ({ url_or_id }) => {
+        const id = extractYouTubeId(url_or_id);
+        if (!id) return { error: "Could not parse YouTube video id" };
+        try {
+          // Try the public timedtext endpoint (works for videos with published captions).
+          const langs = ["en", "en-US", "en-GB", ""];
+          for (const lang of langs) {
+            const url = `https://video.google.com/timedtext?lang=${lang}&v=${id}`;
+            const r = await fetch(url);
+            if (!r.ok) continue;
+            const xml = await r.text();
+            if (!xml || xml.length < 20) continue;
+            const parts = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) =>
+              m[1]
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .replace(/&#39;/g, "'")
+                .replace(/&quot;/g, '"')
+                .replace(/\n/g, " "),
+            );
+            const text = parts.join(" ").trim();
+            if (text.length > 20) {
+              return {
+                video_id: id,
+                lang: lang || "auto",
+                transcript: text.slice(0, 10000),
+                truncated: text.length > 10000,
+              };
+            }
+          }
+          return { error: "No transcript available for this video", video_id: id };
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : "Transcript failed" };
+        }
+      },
+    }),
+
+    run_javascript: tool({
+      description:
+        "Execute a short JavaScript snippet in a sandboxed server context and return the return value + captured console output. Use for calculations, data transformations, quick verifications. No network, no imports. Snippet is wrapped as an async function body — use `return` to return a value.",
+      inputSchema: z.object({ code: z.string().min(1).max(8000) }),
+      execute: async ({ code }) => {
+        const logs: string[] = [];
+        const fakeConsole = {
+          log: (...a: unknown[]) => logs.push(a.map(String).join(" ")),
+          error: (...a: unknown[]) => logs.push("ERR: " + a.map(String).join(" ")),
+          warn: (...a: unknown[]) => logs.push("WARN: " + a.map(String).join(" ")),
+        };
+        try {
+          const fn = new Function("console", `return (async () => { ${code} })();`);
+          const started = Date.now();
+          const result = await Promise.race([
+            fn(fakeConsole),
+            new Promise((_r, rej) =>
+              setTimeout(() => rej(new Error("Timeout (3s)")), 3000),
+            ),
+          ]);
+          return {
+            ok: true,
+            ms: Date.now() - started,
+            result:
+              typeof result === "object" ? JSON.stringify(result).slice(0, 4000) : String(result ?? "undefined"),
+            logs: logs.slice(0, 50),
+          };
+        } catch (e) {
+          return {
+            ok: false,
+            error: e instanceof Error ? e.message : String(e),
+            logs: logs.slice(0, 50),
+          };
+        }
+      },
+    }),
+
+    delegate_to_agent: tool({
+      description:
+        "SWARM MODE: Spawn a specialist sub-agent to work on a focused sub-task and return its answer. Use one call per specialist. Roles: 'planner', 'researcher', 'coder', 'critic', 'writer'. Give the sub-agent a self-contained task — it does not see the parent conversation.",
       inputSchema: z.object({
-        prompt: z.string().min(3).max(1000),
+        role: z.enum(["planner", "researcher", "coder", "critic", "writer"]),
+        task: z.string().min(4).max(2000),
       }),
+      execute: async ({ role, task }) => {
+        const roleSystem: Record<string, string> = {
+          planner:
+            "You are the Planner. Break the task into 3-6 concrete, ordered steps. Output a short numbered plan only.",
+          researcher:
+            "You are the Researcher. Answer the task with concrete facts. Cite sources if you know them.",
+          coder:
+            "You are the Coder. Write clean, working code for the task. Use fenced code blocks. Explain briefly.",
+          critic:
+            "You are the Critic. Find flaws, missing edge cases, wrong assumptions. Be specific and blunt.",
+          writer:
+            "You are the Writer. Rewrite / polish the task's content into clear, engaging prose.",
+        };
+        try {
+          const provider = createLovableAi(ctx.lovableApiKey);
+          const { text } = await generateText({
+            model: provider("google/gemini-3-flash-preview"),
+            system: roleSystem[role],
+            prompt: task,
+          });
+          return { role, task, output: text.slice(0, 4000) };
+        } catch (e) {
+          return { role, error: e instanceof Error ? e.message : "Delegation failed" };
+        }
+      },
+    }),
+
+    generate_image: tool({
+      description: "Generate an image from a text prompt. Returns a URL to render inline.",
+      inputSchema: z.object({ prompt: z.string().min(3).max(1000) }),
       execute: async ({ prompt }) => {
         try {
           const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
