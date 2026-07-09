@@ -4,6 +4,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages } from "@/lib/chat.functions";
+import { PERSONAS } from "@/lib/personas";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,13 +21,17 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  Code2,
   FileText,
   Globe,
   ImageIcon,
+  Link2,
   Loader2,
   Sparkles,
   Square,
+  Users,
   Wrench,
+  Youtube,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
