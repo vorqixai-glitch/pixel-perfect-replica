@@ -64,10 +64,9 @@ export const getThreadMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ threadId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    // Verify ownership through RLS: threads select filters by owner.
     const { data: thread, error: tErr } = await context.supabase
       .from("threads")
-      .select("id,title,model")
+      .select("id,title,model,persona_id")
       .eq("id", data.threadId)
       .maybeSingle();
     if (tErr) throw new Error(tErr.message);
@@ -80,4 +79,18 @@ export const getThreadMessages = createServerFn({ method: "POST" })
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     return { thread, messages: rows ?? [] };
+  });
+
+export const setThreadPersona = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.string().uuid(), persona_id: z.string().max(64).nullable() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("threads")
+      .update({ persona_id: data.persona_id })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

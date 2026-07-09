@@ -4,6 +4,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages } from "@/lib/chat.functions";
+import { PERSONAS } from "@/lib/personas";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,13 +21,17 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  Code2,
   FileText,
   Globe,
   ImageIcon,
+  Link2,
   Loader2,
   Sparkles,
   Square,
+  Users,
   Wrench,
+  Youtube,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -88,6 +93,7 @@ export function ChatView({
       threadId={threadId}
       title={messagesQ.data?.thread.title ?? "New chat"}
       initialModel={messagesQ.data?.thread.model ?? MODELS[0].id}
+      initialPersona={messagesQ.data?.thread.persona_id ?? "default"}
       initialMessages={initialMessages}
       onOpenArtifact={onOpenArtifact}
       activeArtifactId={activeArtifactId}
@@ -99,6 +105,7 @@ function ChatViewInner({
   threadId,
   title,
   initialModel,
+  initialPersona,
   initialMessages,
   onOpenArtifact,
   activeArtifactId,
@@ -106,15 +113,21 @@ function ChatViewInner({
   threadId: string;
   title: string;
   initialModel: string;
+  initialPersona: string;
   initialMessages: UIMessage[];
   onOpenArtifact: (id: string) => void;
   activeArtifactId: string | null;
 }) {
   const [model, setModel] = useState(initialModel);
+  const [personaId, setPersonaId] = useState(initialPersona);
   const modelRef = useRef(model);
+  const personaRef = useRef(personaId);
   useEffect(() => {
     modelRef.current = model;
   }, [model]);
+  useEffect(() => {
+    personaRef.current = personaId;
+  }, [personaId]);
 
   const transport = useMemo(
     () =>
@@ -126,7 +139,12 @@ function ChatViewInner({
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            body: { threadId: id, messages, model: modelRef.current },
+            body: {
+              threadId: id,
+              messages,
+              model: modelRef.current,
+              personaId: personaRef.current,
+            },
             headers,
           };
         },
@@ -191,9 +209,24 @@ function ChatViewInner({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <header className="border-b border-border px-6 py-3 flex items-center gap-2">
+      <header className="border-b border-border px-6 py-3 flex items-center gap-3">
         <Sparkles className="h-4 w-4 text-primary" />
-        <h1 className="font-medium truncate">{title}</h1>
+        <h1 className="font-medium truncate flex-1">{title}</h1>
+        <Select value={personaId} onValueChange={setPersonaId}>
+          <SelectTrigger className="h-8 w-auto gap-1 text-xs">
+            <Users className="h-3.5 w-3.5" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end" className="max-h-96">
+            {PERSONAS.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                <span className="mr-1.5">{p.emoji}</span>
+                <span className="font-medium">{p.name}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{p.tagline}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -389,6 +422,14 @@ function toolMeta(name: string) {
       return { label: "Searching the web", Icon: Globe };
     case "generate_image":
       return { label: "Generating image", Icon: ImageIcon };
+    case "fetch_url":
+      return { label: "Reading URL", Icon: Link2 };
+    case "youtube_transcript":
+      return { label: "Fetching YouTube transcript", Icon: Youtube };
+    case "run_javascript":
+      return { label: "Running JavaScript", Icon: Code2 };
+    case "delegate_to_agent":
+      return { label: "Delegating to sub-agent", Icon: Users };
     default:
       return { label: name, Icon: Wrench };
   }

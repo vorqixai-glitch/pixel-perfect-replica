@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { createLovableAi } from "@/lib/ai-gateway.server";
 import { buildTools } from "@/lib/ai-tools.server";
+import { getPersona } from "@/lib/personas";
 import type { Database } from "@/integrations/supabase/types";
 
 const ALLOWED_MODELS = new Set([
@@ -48,7 +49,7 @@ export const Route = createFileRoute("/api/chat")({
         }
         const userId = userData.user.id;
 
-        let body: { threadId?: string; messages?: UIMessage[]; model?: string };
+        let body: { threadId?: string; messages?: UIMessage[]; model?: string; personaId?: string };
         try {
           body = (await request.json()) as typeof body;
         } catch {
@@ -66,11 +67,14 @@ export const Route = createFileRoute("/api/chat")({
 
         const { data: thread, error: tErr } = await supabase
           .from("threads")
-          .select("id,title,model,project_id")
+          .select("id,title,model,project_id,persona_id")
           .eq("id", threadId)
           .maybeSingle();
         if (tErr) return new Response(tErr.message, { status: 500 });
         if (!thread) return new Response("Thread not found", { status: 404 });
+
+        const personaId = body.personaId ?? thread.persona_id ?? "default";
+        const persona = getPersona(personaId);
 
         let projectSystemPrompt: string | null = null;
         let projectName: string | null = null;
@@ -86,7 +90,7 @@ export const Route = createFileRoute("/api/chat")({
           }
         }
 
-        // Persist last user message
+        // Persist last user message + persona/model changes + auto-title
         const lastUser = [...messages].reverse().find((m) => m.role === "user");
         if (lastUser) {
           const text = extractText(lastUser);
@@ -96,9 +100,10 @@ export const Route = createFileRoute("/api/chat")({
               role: "user",
               content: text,
             });
-            const updates: { title?: string; model?: string } = {};
+            const updates: { title?: string; model?: string; persona_id?: string } = {};
             if (thread.title === "New chat") updates.title = text.slice(0, 60);
             if (thread.model !== model) updates.model = model;
+            if (thread.persona_id !== personaId) updates.persona_id = personaId;
             if (Object.keys(updates).length > 0) {
               await supabase.from("threads").update(updates).eq("id", threadId);
             }
@@ -106,27 +111,27 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const provider = createLovableAi(lovableKey);
-        const tools = buildTools({ supabase, threadId, userId, lovableApiKey: lovableKey });
+        const allTools = buildTools({ supabase, threadId, userId, lovableApiKey: lovableKey });
+        // Only expose the swarm delegation tool to the Swarm Commander persona.
+        const tools = persona.swarm
+          ? allTools
+          : Object.fromEntries(
+              Object.entries(allTools).filter(([k]) => k !== "delegate_to_agent"),
+            );
 
         const systemParts = [
-          "You are Emergent, a fast, precise AI workspace assistant.",
+          persona.system,
           "Answer clearly in Markdown (headings, lists, code fences).",
-          "You have tools:",
-          "- create_artifact / update_artifact: for docs, code, HTML pages. Open in a side panel.",
-          "- web_search: for current or uncertain facts. Cite the URLs you used.",
-          "- generate_image: for visuals when asked.",
-          "Prefer create_artifact over pasting long code blocks inline.",
+          "Available tools: create_artifact/update_artifact (side-panel docs/code/HTML), web_search, fetch_url, youtube_transcript, run_javascript, generate_image" +
+            (persona.swarm ? ", delegate_to_agent" : "") +
+            ". Prefer create_artifact over pasting long code inline.",
         ];
-        if (projectName) {
-          systemParts.push(`This chat is part of the project "${projectName}".`);
-        }
-        if (projectSystemPrompt) {
-          systemParts.push(`Project instructions:\n${projectSystemPrompt}`);
-        }
+        if (projectName) systemParts.push(`This chat is part of the project "${projectName}".`);
+        if (projectSystemPrompt) systemParts.push(`Project instructions:\n${projectSystemPrompt}`);
 
         const result = streamText({
           model: provider(model),
-          system: systemParts.join(" "),
+          system: systemParts.join("\n\n"),
           messages: await convertToModelMessages(messages),
           tools,
           stopWhen: stepCountIs(50),
