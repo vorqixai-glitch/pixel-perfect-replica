@@ -209,9 +209,24 @@ function ChatViewInner({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <header className="border-b border-border px-6 py-3 flex items-center gap-2">
+      <header className="border-b border-border px-6 py-3 flex items-center gap-3">
         <Sparkles className="h-4 w-4 text-primary" />
-        <h1 className="font-medium truncate">{title}</h1>
+        <h1 className="font-medium truncate flex-1">{title}</h1>
+        <Select value={personaId} onValueChange={setPersonaId}>
+          <SelectTrigger className="h-8 w-auto gap-1 text-xs">
+            <Users className="h-3.5 w-3.5" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end" className="max-h-96">
+            {PERSONAS.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                <span className="mr-1.5">{p.emoji}</span>
+                <span className="font-medium">{p.name}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{p.tagline}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
