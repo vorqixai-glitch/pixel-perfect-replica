@@ -93,6 +93,7 @@ export function ChatView({
       threadId={threadId}
       title={messagesQ.data?.thread.title ?? "New chat"}
       initialModel={messagesQ.data?.thread.model ?? MODELS[0].id}
+      initialPersona={messagesQ.data?.thread.persona_id ?? "default"}
       initialMessages={initialMessages}
       onOpenArtifact={onOpenArtifact}
       activeArtifactId={activeArtifactId}
@@ -104,6 +105,7 @@ function ChatViewInner({
   threadId,
   title,
   initialModel,
+  initialPersona,
   initialMessages,
   onOpenArtifact,
   activeArtifactId,
@@ -111,15 +113,21 @@ function ChatViewInner({
   threadId: string;
   title: string;
   initialModel: string;
+  initialPersona: string;
   initialMessages: UIMessage[];
   onOpenArtifact: (id: string) => void;
   activeArtifactId: string | null;
 }) {
   const [model, setModel] = useState(initialModel);
+  const [personaId, setPersonaId] = useState(initialPersona);
   const modelRef = useRef(model);
+  const personaRef = useRef(personaId);
   useEffect(() => {
     modelRef.current = model;
   }, [model]);
+  useEffect(() => {
+    personaRef.current = personaId;
+  }, [personaId]);
 
   const transport = useMemo(
     () =>
@@ -131,7 +139,12 @@ function ChatViewInner({
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            body: { threadId: id, messages, model: modelRef.current },
+            body: {
+              threadId: id,
+              messages,
+              model: modelRef.current,
+              personaId: personaRef.current,
+            },
             headers,
           };
         },
