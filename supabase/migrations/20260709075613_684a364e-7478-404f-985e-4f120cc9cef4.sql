@@ -1,0 +1,1 @@
+ALTER TABLE public.threads ADD COLUMN IF NOT EXISTS persona_id text;
