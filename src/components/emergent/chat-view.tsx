@@ -422,6 +422,14 @@ function toolMeta(name: string) {
       return { label: "Searching the web", Icon: Globe };
     case "generate_image":
       return { label: "Generating image", Icon: ImageIcon };
+    case "fetch_url":
+      return { label: "Reading URL", Icon: Link2 };
+    case "youtube_transcript":
+      return { label: "Fetching YouTube transcript", Icon: Youtube };
+    case "run_javascript":
+      return { label: "Running JavaScript", Icon: Code2 };
+    case "delegate_to_agent":
+      return { label: "Delegating to sub-agent", Icon: Users };
     default:
       return { label: name, Icon: Wrench };
   }
