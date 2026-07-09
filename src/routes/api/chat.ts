@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { createLovableAi } from "@/lib/ai-gateway.server";
 import { buildTools } from "@/lib/ai-tools.server";
+import { getPersona } from "@/lib/personas";
 import type { Database } from "@/integrations/supabase/types";
 
 const ALLOWED_MODELS = new Set([
