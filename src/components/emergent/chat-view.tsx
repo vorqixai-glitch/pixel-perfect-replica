@@ -44,14 +44,20 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const TOGGLEABLE_TOOLS = [
+const TOGGLEABLE_TOOLS: ReadonlyArray<{
+  id: string;
+  label: string;
+  icon: typeof Globe;
+  desc: string;
+  disabled?: boolean;
+}> = [
   { id: "web_search", label: "Web search", icon: Globe, desc: "DuckDuckGo + Wikipedia lookups" },
   { id: "fetch_url", label: "Fetch URL", icon: Link2, desc: "Read a webpage's text content" },
   { id: "youtube_transcript", label: "YouTube transcript", icon: Youtube, desc: "Pull captions from a video" },
   { id: "run_javascript", label: "Run JavaScript", icon: Code2, desc: "Sandboxed JS execution (3s limit)" },
   { id: "generate_image", label: "Generate image", icon: ImageIcon, desc: "Text-to-image via Gemini" },
   { id: "file_upload", label: "File upload", icon: Paperclip, desc: "Attach files to messages", disabled: true },
-] as const;
+];
 
 const DEFAULT_TOOLS = TOGGLEABLE_TOOLS.filter((t) => !t.disabled).map((t) => t.id);
 const TOOLS_STORAGE_KEY = "emergent:enabled-tools";
