@@ -49,7 +49,7 @@ export const Route = createFileRoute("/api/chat")({
         }
         const userId = userData.user.id;
 
-        let body: { threadId?: string; messages?: UIMessage[]; model?: string; personaId?: string };
+        let body: { threadId?: string; messages?: UIMessage[]; model?: string; personaId?: string; enabledTools?: string[] };
         try {
           body = (await request.json()) as typeof body;
         } catch {
