@@ -282,6 +282,80 @@ function ChatViewInner({
             ))}
           </SelectContent>
         </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              aria-label="Tool permissions"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Tools
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] tabular-nums">
+                {enabledTools.filter((t) => DEFAULT_TOOLS.includes(t)).length}/{DEFAULT_TOOLS.length}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-0">
+            <div className="p-3 border-b border-border">
+              <div className="text-sm font-medium">Tool permissions</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Toggle which tools the agent (and swarm sub-agents) may call.
+              </p>
+            </div>
+            <div className="p-2 max-h-96 overflow-y-auto">
+              {TOGGLEABLE_TOOLS.map((tool) => {
+                const on = enabledTools.includes(tool.id);
+                const Icon = tool.icon;
+                return (
+                  <label
+                    key={tool.id}
+                    className={cn(
+                      "flex items-start gap-3 rounded-md px-2 py-2 hover:bg-accent/50 cursor-pointer",
+                      tool.disabled && "opacity-50 cursor-not-allowed",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium flex items-center gap-1.5">
+                        {tool.label}
+                        {tool.disabled && (
+                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            soon
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{tool.desc}</div>
+                    </div>
+                    <Switch
+                      checked={on}
+                      disabled={tool.disabled}
+                      onCheckedChange={() => !tool.disabled && toggleTool(tool.id)}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between border-t border-border p-2 text-xs">
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground px-2 py-1"
+                onClick={() => setEnabledTools([])}
+              >
+                Disable all
+              </button>
+              <button
+                type="button"
+                className="text-primary hover:underline px-2 py-1"
+                onClick={() => setEnabledTools(DEFAULT_TOOLS)}
+              >
+                Reset defaults
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
