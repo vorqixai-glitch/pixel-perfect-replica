@@ -18,6 +18,12 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
@@ -27,6 +33,8 @@ import {
   ImageIcon,
   Link2,
   Loader2,
+  Paperclip,
+  Settings2,
   Sparkles,
   Square,
   Users,
@@ -35,6 +43,36 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const TOGGLEABLE_TOOLS: ReadonlyArray<{
+  id: string;
+  label: string;
+  icon: typeof Globe;
+  desc: string;
+  disabled?: boolean;
+}> = [
+  { id: "web_search", label: "Web search", icon: Globe, desc: "DuckDuckGo + Wikipedia lookups" },
+  { id: "fetch_url", label: "Fetch URL", icon: Link2, desc: "Read a webpage's text content" },
+  { id: "youtube_transcript", label: "YouTube transcript", icon: Youtube, desc: "Pull captions from a video" },
+  { id: "run_javascript", label: "Run JavaScript", icon: Code2, desc: "Sandboxed JS execution (3s limit)" },
+  { id: "generate_image", label: "Generate image", icon: ImageIcon, desc: "Text-to-image via Gemini" },
+  { id: "file_upload", label: "File upload", icon: Paperclip, desc: "Attach files to messages", disabled: true },
+];
+
+const DEFAULT_TOOLS = TOGGLEABLE_TOOLS.filter((t) => !t.disabled).map((t) => t.id);
+const TOOLS_STORAGE_KEY = "emergent:enabled-tools";
+
+function loadEnabledTools(): string[] {
+  if (typeof window === "undefined") return DEFAULT_TOOLS;
+  try {
+    const raw = window.localStorage.getItem(TOOLS_STORAGE_KEY);
+    if (!raw) return DEFAULT_TOOLS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : DEFAULT_TOOLS;
+  } catch {
+    return DEFAULT_TOOLS;
+  }
+}
 
 type DbMessage = { id: string; role: string; content: string; created_at: string };
 
@@ -120,14 +158,30 @@ function ChatViewInner({
 }) {
   const [model, setModel] = useState(initialModel);
   const [personaId, setPersonaId] = useState(initialPersona);
+  const [enabledTools, setEnabledTools] = useState<string[]>(() => loadEnabledTools());
   const modelRef = useRef(model);
   const personaRef = useRef(personaId);
+  const toolsRef = useRef(enabledTools);
   useEffect(() => {
     modelRef.current = model;
   }, [model]);
   useEffect(() => {
     personaRef.current = personaId;
   }, [personaId]);
+  useEffect(() => {
+    toolsRef.current = enabledTools;
+    try {
+      window.localStorage.setItem(TOOLS_STORAGE_KEY, JSON.stringify(enabledTools));
+    } catch {
+      /* ignore */
+    }
+  }, [enabledTools]);
+
+  function toggleTool(id: string) {
+    setEnabledTools((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    );
+  }
 
   const transport = useMemo(
     () =>
@@ -144,6 +198,7 @@ function ChatViewInner({
               messages,
               model: modelRef.current,
               personaId: personaRef.current,
+              enabledTools: toolsRef.current,
             },
             headers,
           };
@@ -227,6 +282,80 @@ function ChatViewInner({
             ))}
           </SelectContent>
         </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              aria-label="Tool permissions"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Tools
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] tabular-nums">
+                {enabledTools.filter((t) => DEFAULT_TOOLS.includes(t)).length}/{DEFAULT_TOOLS.length}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-0">
+            <div className="p-3 border-b border-border">
+              <div className="text-sm font-medium">Tool permissions</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Toggle which tools the agent (and swarm sub-agents) may call.
+              </p>
+            </div>
+            <div className="p-2 max-h-96 overflow-y-auto">
+              {TOGGLEABLE_TOOLS.map((tool) => {
+                const on = enabledTools.includes(tool.id);
+                const Icon = tool.icon;
+                return (
+                  <label
+                    key={tool.id}
+                    className={cn(
+                      "flex items-start gap-3 rounded-md px-2 py-2 hover:bg-accent/50 cursor-pointer",
+                      tool.disabled && "opacity-50 cursor-not-allowed",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium flex items-center gap-1.5">
+                        {tool.label}
+                        {tool.disabled && (
+                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            soon
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{tool.desc}</div>
+                    </div>
+                    <Switch
+                      checked={on}
+                      disabled={tool.disabled}
+                      onCheckedChange={() => !tool.disabled && toggleTool(tool.id)}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between border-t border-border p-2 text-xs">
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground px-2 py-1"
+                onClick={() => setEnabledTools([])}
+              >
+                Disable all
+              </button>
+              <button
+                type="button"
+                className="text-primary hover:underline px-2 py-1"
+                onClick={() => setEnabledTools(DEFAULT_TOOLS)}
+              >
+                Reset defaults
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">

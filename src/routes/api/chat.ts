@@ -49,7 +49,7 @@ export const Route = createFileRoute("/api/chat")({
         }
         const userId = userData.user.id;
 
-        let body: { threadId?: string; messages?: UIMessage[]; model?: string; personaId?: string };
+        let body: { threadId?: string; messages?: UIMessage[]; model?: string; personaId?: string; enabledTools?: string[] };
         try {
           body = (await request.json()) as typeof body;
         } catch {
@@ -112,19 +112,22 @@ export const Route = createFileRoute("/api/chat")({
 
         const provider = createLovableAi(lovableKey);
         const allTools = buildTools({ supabase, threadId, userId, lovableApiKey: lovableKey });
-        // Only expose the swarm delegation tool to the Swarm Commander persona.
-        const tools = persona.swarm
-          ? allTools
-          : Object.fromEntries(
-              Object.entries(allTools).filter(([k]) => k !== "delegate_to_agent"),
-            );
+        // Always-on core tools (side-panel artifacts). Everything else is user-toggleable.
+        const ALWAYS_ON = new Set(["create_artifact", "update_artifact"]);
+        const requested = Array.isArray(body.enabledTools) ? new Set(body.enabledTools) : null;
+        const tools = Object.fromEntries(
+          Object.entries(allTools).filter(([k]) => {
+            if (k === "delegate_to_agent") return persona.swarm;
+            if (ALWAYS_ON.has(k)) return true;
+            return requested ? requested.has(k) : true;
+          }),
+        );
 
+        const enabledList = Object.keys(tools).join(", ");
         const systemParts = [
           persona.system,
           "Answer clearly in Markdown (headings, lists, code fences).",
-          "Available tools: create_artifact/update_artifact (side-panel docs/code/HTML), web_search, fetch_url, youtube_transcript, run_javascript, generate_image" +
-            (persona.swarm ? ", delegate_to_agent" : "") +
-            ". Prefer create_artifact over pasting long code inline.",
+          `Available tools this turn: ${enabledList}. If the user asks for something a disabled tool would do, say the tool is off and suggest enabling it in Tools settings. Prefer create_artifact over pasting long code inline.`,
         ];
         if (projectName) systemParts.push(`This chat is part of the project "${projectName}".`);
         if (projectSystemPrompt) systemParts.push(`Project instructions:\n${projectSystemPrompt}`);
