@@ -18,6 +18,12 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
@@ -27,6 +33,8 @@ import {
   ImageIcon,
   Link2,
   Loader2,
+  Paperclip,
+  Settings2,
   Sparkles,
   Square,
   Users,
@@ -35,6 +43,30 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const TOGGLEABLE_TOOLS = [
+  { id: "web_search", label: "Web search", icon: Globe, desc: "DuckDuckGo + Wikipedia lookups" },
+  { id: "fetch_url", label: "Fetch URL", icon: Link2, desc: "Read a webpage's text content" },
+  { id: "youtube_transcript", label: "YouTube transcript", icon: Youtube, desc: "Pull captions from a video" },
+  { id: "run_javascript", label: "Run JavaScript", icon: Code2, desc: "Sandboxed JS execution (3s limit)" },
+  { id: "generate_image", label: "Generate image", icon: ImageIcon, desc: "Text-to-image via Gemini" },
+  { id: "file_upload", label: "File upload", icon: Paperclip, desc: "Attach files to messages", disabled: true },
+] as const;
+
+const DEFAULT_TOOLS = TOGGLEABLE_TOOLS.filter((t) => !t.disabled).map((t) => t.id);
+const TOOLS_STORAGE_KEY = "emergent:enabled-tools";
+
+function loadEnabledTools(): string[] {
+  if (typeof window === "undefined") return DEFAULT_TOOLS;
+  try {
+    const raw = window.localStorage.getItem(TOOLS_STORAGE_KEY);
+    if (!raw) return DEFAULT_TOOLS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : DEFAULT_TOOLS;
+  } catch {
+    return DEFAULT_TOOLS;
+  }
+}
 
 type DbMessage = { id: string; role: string; content: string; created_at: string };
 
