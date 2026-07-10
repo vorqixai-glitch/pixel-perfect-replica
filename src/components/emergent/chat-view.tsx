@@ -158,14 +158,30 @@ function ChatViewInner({
 }) {
   const [model, setModel] = useState(initialModel);
   const [personaId, setPersonaId] = useState(initialPersona);
+  const [enabledTools, setEnabledTools] = useState<string[]>(() => loadEnabledTools());
   const modelRef = useRef(model);
   const personaRef = useRef(personaId);
+  const toolsRef = useRef(enabledTools);
   useEffect(() => {
     modelRef.current = model;
   }, [model]);
   useEffect(() => {
     personaRef.current = personaId;
   }, [personaId]);
+  useEffect(() => {
+    toolsRef.current = enabledTools;
+    try {
+      window.localStorage.setItem(TOOLS_STORAGE_KEY, JSON.stringify(enabledTools));
+    } catch {
+      /* ignore */
+    }
+  }, [enabledTools]);
+
+  function toggleTool(id: string) {
+    setEnabledTools((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    );
+  }
 
   const transport = useMemo(
     () =>
@@ -182,6 +198,7 @@ function ChatViewInner({
               messages,
               model: modelRef.current,
               personaId: personaRef.current,
+              enabledTools: toolsRef.current,
             },
             headers,
           };
