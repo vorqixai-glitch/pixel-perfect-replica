@@ -147,6 +147,83 @@ export type Database = {
         }
         Relationships: []
       }
+      prompts: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      thread_files: {
+        Row: {
+          created_at: string
+          extracted_text: string | null
+          id: string
+          mime_type: string
+          name: string
+          path: string
+          size_bytes: number
+          thread_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extracted_text?: string | null
+          id?: string
+          mime_type?: string
+          name: string
+          path: string
+          size_bytes?: number
+          thread_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extracted_text?: string | null
+          id?: string
+          mime_type?: string
+          name?: string
+          path?: string
+          size_bytes?: number
+          thread_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_files_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           created_at: string
