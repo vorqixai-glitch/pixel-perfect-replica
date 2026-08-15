@@ -59,7 +59,9 @@ const TOGGLEABLE_TOOLS: ReadonlyArray<{
   { id: "youtube_transcript", label: "YouTube transcript", icon: Youtube, desc: "Pull captions from a video" },
   { id: "run_javascript", label: "Run JavaScript", icon: Code2, desc: "Sandboxed JS execution (3s limit)" },
   { id: "generate_image", label: "Generate image", icon: ImageIcon, desc: "Text-to-image via Gemini" },
-  { id: "file_upload", label: "File upload", icon: Paperclip, desc: "Attach files to messages", disabled: true },
+  { id: "read_uploaded_file", label: "Read attachments", icon: Paperclip, desc: "Read PDFs and files you attach" },
+  { id: "github", label: "GitHub", icon: Github, desc: "Search repos, read files, open issues" },
+  { id: "save_lead", label: "Save leads", icon: Users, desc: "Write prospects into your CRM" },
 ];
 
 const DEFAULT_TOOLS = TOGGLEABLE_TOOLS.filter((t) => !t.disabled).map((t) => t.id);
