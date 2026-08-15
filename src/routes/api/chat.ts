@@ -6,12 +6,7 @@ import { buildTools } from "@/lib/ai-tools.server";
 import { getPersona } from "@/lib/personas";
 import type { Database } from "@/integrations/supabase/types";
 
-const ALLOWED_MODELS = new Set([
-  "google/gemini-3-flash-preview",
-  "google/gemini-2.5-pro",
-  "openai/gpt-5",
-  "openai/gpt-5-mini",
-]);
+import { ALLOWED_MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
 
 function extractText(msg: UIMessage): string {
   return (msg.parts ?? [])
