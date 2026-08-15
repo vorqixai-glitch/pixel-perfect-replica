@@ -264,10 +264,21 @@ function ChatViewInner({
   }
 
   return (
+    <div className="flex-1 flex min-h-0">
     <div className="flex-1 flex flex-col min-h-0">
       <header className="border-b border-border px-6 py-3 flex items-center gap-3">
         <Sparkles className="h-4 w-4 text-primary" />
         <h1 className="font-medium truncate flex-1">{title}</h1>
+        <Button
+          type="button"
+          variant={showPrompts ? "secondary" : "outline"}
+          size="sm"
+          className="h-8 gap-1 text-xs"
+          onClick={() => setShowPrompts((v) => !v)}
+        >
+          <Wand2 className="h-3.5 w-3.5" />
+          Prompts
+        </Button>
         <Select value={personaId} onValueChange={setPersonaId}>
           <SelectTrigger className="h-8 w-auto gap-1 text-xs">
             <Users className="h-3.5 w-3.5" />
