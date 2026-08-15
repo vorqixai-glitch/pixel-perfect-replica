@@ -586,6 +586,12 @@ function toolMeta(name: string) {
       return { label: "Running JavaScript", Icon: Code2 };
     case "delegate_to_agent":
       return { label: "Delegating to sub-agent", Icon: Users };
+    case "read_uploaded_file":
+      return { label: "Reading attachment", Icon: Paperclip };
+    case "github":
+      return { label: "Calling GitHub", Icon: Github };
+    case "save_lead":
+      return { label: "Saving lead", Icon: Users };
     default:
       return { label: name, Icon: Wrench };
   }
