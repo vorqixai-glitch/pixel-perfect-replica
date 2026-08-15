@@ -407,20 +407,23 @@ function ChatViewInner({
               rows={1}
               className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none"
             />
-            <div className="flex items-center justify-between px-2 pb-2">
-              <Select value={model} onValueChange={setModel}>
-                <SelectTrigger className="h-8 w-auto border-0 bg-transparent shadow-none focus:ring-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <span className="font-medium">{m.label}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{m.hint}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between gap-2 px-2 pb-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1">
+                <Select value={model} onValueChange={setModel}>
+                  <SelectTrigger className="h-8 w-auto shrink-0 border-0 bg-transparent shadow-none focus:ring-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-96">
+                    {MODELS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{m.hint}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <AttachmentsBar threadId={threadId} />
+              </div>
 
               {isLoading ? (
                 <Button
@@ -445,10 +448,20 @@ function ChatViewInner({
             </div>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground text-center">
-            Web search, image generation, and artifacts are enabled.
+            Attach PDFs and files, search the web, run code, generate images — all wired in.
           </p>
         </form>
       </div>
+    </div>
+    {showPrompts && (
+      <PromptLibrary
+        onClose={() => setShowPrompts(false)}
+        onUse={(text) => {
+          setInput(text);
+          inputRef.current?.focus();
+        }}
+      />
+    )}
     </div>
   );
 }
