@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Workflow,
   listThreads,
   createThread,
   deleteThread,
@@ -62,6 +61,7 @@ import {
   FolderOpen,
   FolderMinus,
 } from "lucide-react";
+import { Workflow } from "lucide-react";
 import { ProjectDialog, type ProjectFormValue } from "./project-dialog";
 
 export function ChatSidebar() {
