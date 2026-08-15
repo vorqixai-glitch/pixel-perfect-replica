@@ -6,7 +6,7 @@ import { createLovableAi } from "@/lib/ai-gateway.server";
 
 type ToolCtx = {
   supabase: ReturnType<typeof createClient<Database>>;
-  threadId: string;
+  threadId: string | null;
   userId: string;
   lovableApiKey: string;
 };
