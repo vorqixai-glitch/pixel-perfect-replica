@@ -42,6 +42,7 @@ import {
   Sparkles,
   Square,
   Users,
+  Wand2,
   Wrench,
   Youtube,
 } from "lucide-react";
@@ -242,6 +243,7 @@ function ChatViewInner({
   }, [messages, onOpenArtifact]);
 
   const [input, setInput] = useState("");
+  const [showPrompts, setShowPrompts] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
