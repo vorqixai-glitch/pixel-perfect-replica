@@ -56,9 +56,7 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Bad request", { status: 400 });
         }
         const model =
-          body.model && ALLOWED_MODELS.has(body.model)
-            ? body.model
-            : "google/gemini-3-flash-preview";
+          body.model && ALLOWED_MODEL_IDS.has(body.model) ? body.model : DEFAULT_MODEL;
 
         const { data: thread, error: tErr } = await supabase
           .from("threads")
