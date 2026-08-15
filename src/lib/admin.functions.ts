@@ -39,7 +39,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
 
     const { data: users } = await supabaseAdmin
       .from("profiles")
-      .select("id,email,display_name,created_at")
+      .select("id,display_name,avatar_url,created_at")
       .order("created_at", { ascending: false })
       .limit(100);
 
