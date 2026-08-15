@@ -6,12 +6,7 @@ import { buildTools } from "@/lib/ai-tools.server";
 import { getPersona } from "@/lib/personas";
 import type { Database } from "@/integrations/supabase/types";
 
-const ALLOWED_MODELS = new Set([
-  "google/gemini-3-flash-preview",
-  "google/gemini-2.5-pro",
-  "openai/gpt-5",
-  "openai/gpt-5-mini",
-]);
+import { ALLOWED_MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
 
 function extractText(msg: UIMessage): string {
   return (msg.parts ?? [])
@@ -61,9 +56,7 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Bad request", { status: 400 });
         }
         const model =
-          body.model && ALLOWED_MODELS.has(body.model)
-            ? body.model
-            : "google/gemini-3-flash-preview";
+          body.model && ALLOWED_MODEL_IDS.has(body.model) ? body.model : DEFAULT_MODEL;
 
         const { data: thread, error: tErr } = await supabase
           .from("threads")
@@ -131,6 +124,28 @@ export const Route = createFileRoute("/api/chat")({
         ];
         if (projectName) systemParts.push(`This chat is part of the project "${projectName}".`);
         if (projectSystemPrompt) systemParts.push(`Project instructions:\n${projectSystemPrompt}`);
+
+        const { data: files } = await supabase
+          .from("thread_files")
+          .select("id,name,mime_type,extracted_text")
+          .eq("thread_id", threadId)
+          .order("created_at", { ascending: false })
+          .limit(25);
+        if (files && files.length > 0) {
+          systemParts.push(
+            `Files the user attached to this chat (use read_uploaded_file with the id to read one):\n` +
+              files
+                .map(
+                  (f) =>
+                    `- ${f.name} (${f.mime_type}) id=${f.id} ${
+                      f.extracted_text
+                        ? `[${f.extracted_text.length} chars of text]`
+                        : "[no extractable text]"
+                    }`,
+                )
+                .join("\n"),
+          );
+        }
 
         const result = streamText({
           model: provider(model),

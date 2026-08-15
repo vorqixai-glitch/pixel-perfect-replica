@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages } from "@/lib/chat.functions";
 import { PERSONAS } from "@/lib/personas";
+import { CHAT_MODELS } from "@/lib/models";
+import { AttachmentsBar } from "@/components/emergent/attachments-bar";
+import { PromptLibrary } from "@/components/emergent/prompt-library";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +32,7 @@ import {
   ChevronRight,
   Code2,
   FileText,
+  Github,
   Globe,
   ImageIcon,
   Link2,
@@ -38,6 +42,7 @@ import {
   Sparkles,
   Square,
   Users,
+  Wand2,
   Wrench,
   Youtube,
 } from "lucide-react";
@@ -56,7 +61,9 @@ const TOGGLEABLE_TOOLS: ReadonlyArray<{
   { id: "youtube_transcript", label: "YouTube transcript", icon: Youtube, desc: "Pull captions from a video" },
   { id: "run_javascript", label: "Run JavaScript", icon: Code2, desc: "Sandboxed JS execution (3s limit)" },
   { id: "generate_image", label: "Generate image", icon: ImageIcon, desc: "Text-to-image via Gemini" },
-  { id: "file_upload", label: "File upload", icon: Paperclip, desc: "Attach files to messages", disabled: true },
+  { id: "read_uploaded_file", label: "Read attachments", icon: Paperclip, desc: "Read PDFs and files you attach" },
+  { id: "github", label: "GitHub", icon: Github, desc: "Search repos, read files, open issues" },
+  { id: "save_lead", label: "Save leads", icon: Users, desc: "Write prospects into your CRM" },
 ];
 
 const DEFAULT_TOOLS = TOGGLEABLE_TOOLS.filter((t) => !t.disabled).map((t) => t.id);
@@ -76,12 +83,7 @@ function loadEnabledTools(): string[] {
 
 type DbMessage = { id: string; role: string; content: string; created_at: string };
 
-const MODELS = [
-  { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash", hint: "Fast · default" },
-  { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", hint: "Smarter" },
-  { id: "openai/gpt-5-mini", label: "GPT-5 mini", hint: "Balanced" },
-  { id: "openai/gpt-5", label: "GPT-5", hint: "Most capable" },
-];
+const MODELS = CHAT_MODELS.map((m) => ({ id: m.id, label: m.name, hint: m.blurb }));
 
 function toUIMessage(row: DbMessage): UIMessage {
   return {
@@ -241,6 +243,7 @@ function ChatViewInner({
   }, [messages, onOpenArtifact]);
 
   const [input, setInput] = useState("");
+  const [showPrompts, setShowPrompts] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -263,10 +266,21 @@ function ChatViewInner({
   }
 
   return (
+    <div className="flex-1 flex min-h-0">
     <div className="flex-1 flex flex-col min-h-0">
       <header className="border-b border-border px-6 py-3 flex items-center gap-3">
         <Sparkles className="h-4 w-4 text-primary" />
         <h1 className="font-medium truncate flex-1">{title}</h1>
+        <Button
+          type="button"
+          variant={showPrompts ? "secondary" : "outline"}
+          size="sm"
+          className="h-8 gap-1 text-xs"
+          onClick={() => setShowPrompts((v) => !v)}
+        >
+          <Wand2 className="h-3.5 w-3.5" />
+          Prompts
+        </Button>
         <Select value={personaId} onValueChange={setPersonaId}>
           <SelectTrigger className="h-8 w-auto gap-1 text-xs">
             <Users className="h-3.5 w-3.5" />
@@ -395,20 +409,23 @@ function ChatViewInner({
               rows={1}
               className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none"
             />
-            <div className="flex items-center justify-between px-2 pb-2">
-              <Select value={model} onValueChange={setModel}>
-                <SelectTrigger className="h-8 w-auto border-0 bg-transparent shadow-none focus:ring-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <span className="font-medium">{m.label}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{m.hint}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between gap-2 px-2 pb-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1">
+                <Select value={model} onValueChange={setModel}>
+                  <SelectTrigger className="h-8 w-auto shrink-0 border-0 bg-transparent shadow-none focus:ring-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-96">
+                    {MODELS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{m.hint}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <AttachmentsBar threadId={threadId} />
+              </div>
 
               {isLoading ? (
                 <Button
@@ -433,10 +450,20 @@ function ChatViewInner({
             </div>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground text-center">
-            Web search, image generation, and artifacts are enabled.
+            Attach PDFs and files, search the web, run code, generate images — all wired in.
           </p>
         </form>
       </div>
+    </div>
+    {showPrompts && (
+      <PromptLibrary
+        onClose={() => setShowPrompts(false)}
+        onUse={(text) => {
+          setInput(text);
+          inputRef.current?.focus();
+        }}
+      />
+    )}
     </div>
   );
 }
@@ -559,6 +586,12 @@ function toolMeta(name: string) {
       return { label: "Running JavaScript", Icon: Code2 };
     case "delegate_to_agent":
       return { label: "Delegating to sub-agent", Icon: Users };
+    case "read_uploaded_file":
+      return { label: "Reading attachment", Icon: Paperclip };
+    case "github":
+      return { label: "Calling GitHub", Icon: Github };
+    case "save_lead":
+      return { label: "Saving lead", Icon: Users };
     default:
       return { label: name, Icon: Wrench };
   }

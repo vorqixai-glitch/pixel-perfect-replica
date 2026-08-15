@@ -6,7 +6,7 @@ import { createLovableAi } from "@/lib/ai-gateway.server";
 
 type ToolCtx = {
   supabase: ReturnType<typeof createClient<Database>>;
-  threadId: string;
+  threadId: string | null;
   userId: string;
   lovableApiKey: string;
 };
@@ -39,6 +39,7 @@ export function buildTools(ctx: ToolCtx) {
         content: z.string(),
       }),
       execute: async ({ title, kind, language, content }) => {
+        if (!ctx.threadId) return { error: "Artifacts are only available inside a chat thread." };
         const { data, error } = await ctx.supabase
           .from("artifacts")
           .insert({
@@ -244,25 +245,187 @@ export function buildTools(ctx: ToolCtx) {
       },
     }),
 
+    read_uploaded_file: tool({
+      description:
+        "Read the text content of a file the user uploaded to this chat (PDF, text, code, CSV, JSON). Call list first with no id to see what's available, then pass an id to read one.",
+      inputSchema: z.object({
+        file_id: z.string().uuid().optional(),
+        offset: z.number().int().min(0).optional(),
+      }),
+      execute: async ({ file_id, offset }) => {
+        if (!ctx.threadId) return { error: "No thread context" };
+        if (!file_id) {
+          const { data, error } = await ctx.supabase
+            .from("thread_files")
+            .select("id,name,mime_type,size_bytes,extracted_text")
+            .eq("thread_id", ctx.threadId)
+            .order("created_at", { ascending: false });
+          if (error) return { error: error.message };
+          return {
+            files: (data ?? []).map((f) => ({
+              id: f.id,
+              name: f.name,
+              mime_type: f.mime_type,
+              size_bytes: f.size_bytes,
+              readable: Boolean(f.extracted_text),
+              chars: f.extracted_text?.length ?? 0,
+            })),
+          };
+        }
+        const { data, error } = await ctx.supabase
+          .from("thread_files")
+          .select("id,name,mime_type,extracted_text")
+          .eq("id", file_id)
+          .maybeSingle();
+        if (error) return { error: error.message };
+        if (!data) return { error: "File not found" };
+        if (!data.extracted_text)
+          return {
+            id: data.id,
+            name: data.name,
+            error: "No extractable text (binary or image file).",
+          };
+        const start = offset ?? 0;
+        const chunk = data.extracted_text.slice(start, start + 12000);
+        return {
+          id: data.id,
+          name: data.name,
+          offset: start,
+          text: chunk,
+          next_offset: start + chunk.length < data.extracted_text.length ? start + chunk.length : null,
+          total_chars: data.extracted_text.length,
+        };
+      },
+    }),
+
+    save_lead: tool({
+      description:
+        "Save a real prospect/lead you found into the user's CRM. Only save concrete, verifiable prospects — never invented ones. Include the source URL.",
+      inputSchema: z.object({
+        name: z.string(),
+        company: z.string().optional(),
+        role_title: z.string().optional(),
+        email: z.string().optional(),
+        website: z.string().optional(),
+        source: z.string().optional(),
+        notes: z.string().optional(),
+        score: z.number().int().optional(),
+      }),
+      execute: async (input) => {
+        const { data, error } = await ctx.supabase
+          .from("leads")
+          .insert({
+            user_id: ctx.userId,
+            name: input.name,
+            company: input.company ?? null,
+            role_title: input.role_title ?? null,
+            email: input.email ?? null,
+            website: input.website ?? null,
+            source: input.source ?? null,
+            notes: input.notes ?? null,
+            score: Math.max(0, Math.min(100, input.score ?? 50)),
+          })
+          .select("id,name,company")
+          .single();
+        if (error) return { error: error.message };
+        return { saved: true, id: data.id, name: data.name, company: data.company };
+      },
+    }),
+
+    github: tool({
+      description:
+        "Call the GitHub REST API on the user's behalf. Use for searching repos/code, reading files, listing issues/PRs, and creating issues. `path` is a REST path without a leading host, e.g. 'search/repositories?q=ai+agent' or 'repos/owner/name/contents/README.md'.",
+      inputSchema: z.object({
+        method: z.enum(["GET", "POST", "PATCH"]),
+        path: z.string().min(1).max(500),
+        body: z.string().optional(),
+      }),
+      execute: async ({ method, path, body }) => {
+        const connKey = process.env.GITHUB_API_KEY;
+        if (!connKey)
+          return {
+            error:
+              "GitHub is not connected yet. Ask the user to connect their GitHub account in the app's integrations settings.",
+          };
+        try {
+          const res = await fetch(
+            `https://connector-gateway.lovable.dev/github/${path.replace(/^\//, "")}`,
+            {
+              method,
+              headers: {
+                Accept: "application/vnd.github+json",
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${ctx.lovableApiKey}`,
+                "X-Connection-Api-Key": connKey,
+              },
+              body: method === "GET" ? undefined : (body ?? "{}"),
+            },
+          );
+          const text = await res.text();
+          if (!res.ok) return { error: `GitHub ${res.status}: ${text.slice(0, 500)}` };
+          let json: unknown;
+          try {
+            json = JSON.parse(text);
+          } catch {
+            return { status: res.status, text: text.slice(0, 8000) };
+          }
+          // Decode base64 file contents automatically.
+          const obj = json as { content?: string; encoding?: string };
+          if (obj?.encoding === "base64" && typeof obj.content === "string") {
+            try {
+              const decoded = atob(obj.content.replace(/\n/g, ""));
+              return { status: res.status, path, text: decoded.slice(0, 12000) };
+            } catch {
+              /* fall through */
+            }
+          }
+          return { status: res.status, data: JSON.parse(JSON.stringify(json)) };
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : "GitHub request failed" };
+        }
+      },
+    }),
+
     delegate_to_agent: tool({
       description:
-        "SWARM MODE: Spawn a specialist sub-agent to work on a focused sub-task and return its answer. Use one call per specialist. Roles: 'planner', 'researcher', 'coder', 'critic', 'writer'. Give the sub-agent a self-contained task — it does not see the parent conversation.",
+        "SWARM MODE: Spawn a specialist sub-agent to work on a focused sub-task and return its answer. Use one call per specialist — call it multiple times to run a team in parallel. Give the sub-agent a self-contained task; it does not see the parent conversation.",
       inputSchema: z.object({
-        role: z.enum(["planner", "researcher", "coder", "critic", "writer"]),
-        task: z.string().min(4).max(2000),
+        role: z.enum([
+          "planner",
+          "researcher",
+          "coder",
+          "critic",
+          "writer",
+          "designer",
+          "marketer",
+          "analyst",
+          "security",
+          "devops",
+        ]),
+        task: z.string().min(4).max(4000),
       }),
       execute: async ({ role, task }) => {
         const roleSystem: Record<string, string> = {
           planner:
-            "You are the Planner. Break the task into 3-6 concrete, ordered steps. Output a short numbered plan only.",
+            "You are the Planner. Break the task into 3-6 concrete, ordered steps with owners and acceptance criteria. Output the plan only.",
           researcher:
-            "You are the Researcher. Answer the task with concrete facts. Cite sources if you know them.",
+            "You are the Researcher. Answer with concrete, verifiable facts. Cite source URLs. Say plainly when something is uncertain.",
           coder:
-            "You are the Coder. Write clean, working code for the task. Use fenced code blocks. Explain briefly.",
+            "You are the Coder. Write clean, complete, working code. Use fenced code blocks. No TODO stubs. Explain briefly.",
           critic:
-            "You are the Critic. Find flaws, missing edge cases, wrong assumptions. Be specific and blunt.",
+            "You are the Critic. Find flaws, missing edge cases, wrong assumptions, and security holes. Be specific and blunt. Rank issues by severity.",
           writer:
-            "You are the Writer. Rewrite / polish the task's content into clear, engaging prose.",
+            "You are the Writer. Rewrite and polish into clear, engaging prose. Keep the author's intent; cut the padding.",
+          designer:
+            "You are the Designer. Specify layout, hierarchy, colour, type, spacing, and states concretely. Describe the UI so an engineer could build it without guessing.",
+          marketer:
+            "You are the Marketer. Positioning, hooks, and channel strategy. Benefit-first, human tone. Give 3 ranked angles.",
+          analyst:
+            "You are the Analyst. Quantify. Give the numbers, the method, the assumptions, and the sensitivity of the conclusion.",
+          security:
+            "You are the Security engineer. Threat-model the task: attack surface, auth/authz gaps, data exposure, injection, and concrete mitigations.",
+          devops:
+            "You are the DevOps engineer. Deployment topology, CI/CD, env config, observability, rollback plan, and exact commands.",
         };
         try {
           const provider = createLovableAi(ctx.lovableApiKey);
@@ -271,7 +434,7 @@ export function buildTools(ctx: ToolCtx) {
             system: roleSystem[role],
             prompt: task,
           });
-          return { role, task, output: text.slice(0, 4000) };
+          return { role, task, output: text.slice(0, 6000) };
         } catch (e) {
           return { role, error: e instanceof Error ? e.message : "Delegation failed" };
         }

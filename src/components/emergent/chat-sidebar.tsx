@@ -61,6 +61,7 @@ import {
   FolderOpen,
   FolderMinus,
 } from "lucide-react";
+import { Workflow } from "lucide-react";
 import { ProjectDialog, type ProjectFormValue } from "./project-dialog";
 
 export function ChatSidebar() {
@@ -408,6 +409,12 @@ export function ChatSidebar() {
       </div>
 
       <div className="border-t border-sidebar-border p-2">
+        <Link
+          to="/workflows"
+          className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-sidebar-accent"
+        >
+          <Workflow className="h-4 w-4" /> Workflows
+        </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent text-left">

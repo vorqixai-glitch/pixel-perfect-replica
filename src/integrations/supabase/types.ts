@@ -61,6 +61,54 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          role_title: string | null
+          score: number
+          source: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          role_title?: string | null
+          score?: number
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          role_title?: string | null
+          score?: number
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -265,15 +313,89 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workflow_runs: {
+        Row: {
+          created_at: string
+          current_step: number
+          id: string
+          status: string
+          steps: Json
+          thread_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          workflow_key: string
+        }
+        Insert: {
+          created_at?: string
+          current_step?: number
+          id?: string
+          status?: string
+          steps?: Json
+          thread_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+          workflow_key: string
+        }
+        Update: {
+          created_at?: string
+          current_step?: number
+          id?: string
+          status?: string
+          steps?: Json
+          thread_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          workflow_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_runs_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -400,6 +522,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
