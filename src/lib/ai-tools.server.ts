@@ -39,6 +39,7 @@ export function buildTools(ctx: ToolCtx) {
         content: z.string(),
       }),
       execute: async ({ title, kind, language, content }) => {
+        if (!ctx.threadId) return { error: "Artifacts are only available inside a chat thread." };
         const { data, error } = await ctx.supabase
           .from("artifacts")
           .insert({
