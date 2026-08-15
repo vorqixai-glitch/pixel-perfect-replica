@@ -32,6 +32,7 @@ import {
   ChevronRight,
   Code2,
   FileText,
+  Github,
   Globe,
   ImageIcon,
   Link2,
