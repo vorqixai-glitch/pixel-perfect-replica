@@ -76,12 +76,7 @@ function loadEnabledTools(): string[] {
 
 type DbMessage = { id: string; role: string; content: string; created_at: string };
 
-const MODELS = [
-  { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash", hint: "Fast · default" },
-  { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", hint: "Smarter" },
-  { id: "openai/gpt-5-mini", label: "GPT-5 mini", hint: "Balanced" },
-  { id: "openai/gpt-5", label: "GPT-5", hint: "Most capable" },
-];
+const MODELS = CHAT_MODELS.map((m) => ({ id: m.id, label: m.name, hint: m.blurb }));
 
 function toUIMessage(row: DbMessage): UIMessage {
   return {
