@@ -60,9 +60,11 @@ import {
   Plus,
   FolderOpen,
   FolderMinus,
+  Download,
 } from "lucide-react";
 import { Workflow } from "lucide-react";
 import { ProjectDialog, type ProjectFormValue } from "./project-dialog";
+import { ExportDialog, type ExportTarget } from "./export-dialog";
 
 export function ChatSidebar() {
   const navigate = useNavigate();
@@ -96,6 +98,7 @@ export function ChatSidebar() {
     initial: ProjectFormValue | null;
   }>({ open: false, initial: null });
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [exportTarget, setExportTarget] = useState<ExportTarget | null>(null);
 
   const grouped = useMemo(() => {
     const map = new Map<string | null, typeof threadsQ.data>();
@@ -258,6 +261,11 @@ export function ChatSidebar() {
                     )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                <DropdownMenuItem
+                  onClick={() => setExportTarget({ kind: "thread", id: t.id, name: t.title })}
+                >
+                  <Download className="mr-2 h-4 w-4" /> Export chat
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -441,6 +449,12 @@ export function ChatSidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <ExportDialog
+        target={exportTarget}
+        open={exportTarget !== null}
+        onOpenChange={(o) => !o && setExportTarget(null)}
+      />
 
       <ProjectDialog
         open={projectDialog.open}
