@@ -369,6 +369,14 @@ export function ChatSidebar() {
                     <DropdownMenuItem onClick={() => handleNewChat(p.id)}>
                       <MessageSquarePlus className="mr-2 h-4 w-4" /> New chat here
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setExportTarget({ kind: "project", id: p.id, name: p.name })
+                      }
+                    >
+                      <Download className="mr-2 h-4 w-4" /> Export project
+                    </DropdownMenuItem>
+
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
