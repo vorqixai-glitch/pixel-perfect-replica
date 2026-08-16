@@ -1,47 +1,25 @@
-## Goal
-Turn the chat clone into a genuinely differentiated AI workspace. Ship in 3 batches so each batch is fully working before the next.
+# Export a project to desktop or GitHub
 
-## Batch 1 — Agentic + Artifacts (this turn)
-The highest wow-factor per hour. Makes the product feel unlike ChatGPT immediately.
+Add an "Export" action to every project (and to a single chat) that packages everything the project produced — chats, artifacts, uploaded files, project instructions — and either downloads it as a ZIP or pushes it into a GitHub repository.
 
-1. **Tool calling in the AI route**
-   - `web_search` tool (via Lovable AI Gateway — Gemini native grounding, or fallback to a search API)
-   - `generate_image` tool (Lovable AI image gen, renders inline)
-   - `create_artifact` tool (opens the artifacts pane)
-   - Render tool calls in chat with the AI Elements `Tool` component (collapsed by default)
+## What the user gets
 
-2. **Artifacts pane**
-   - Split-view: chat on left, artifact on right when open
-   - Types: `markdown`, `code` (with syntax highlight), `html` (sandboxed iframe preview)
-   - Stored in a new `artifacts` table, versioned, tied to a thread
-   - Model can create/update artifacts via tool call; user sees live updates
-   - Toggle open/close, copy, download
+- **Export menu** in the project dropdown in the sidebar (next to Rename/Delete), plus the same action on a single chat.
+- **Download to desktop**: a ZIP containing
+  - `README.md` — project name, description, instructions, chat index
+  - `chats/<chat-title>.md` — full transcript per chat
+  - `artifacts/<title>.<ext>` — each artifact as a real file (`.md`, `.html`, `.py`, `.ts`, …)
+  - `files/<name>` — the originals the user uploaded
+  - `project.json` — machine-readable manifest
+- **Push to GitHub**: dialog asking for repo name, private/public toggle, and optional target folder. Creates the repo if it doesn't exist, then commits the same file tree. On success shows the repo link. If GitHub isn't connected, the dialog says so and offers the connect step instead of failing silently.
+- Progress + toast feedback for both paths; disabled state while exporting.
 
-3. **Multi-model selector**
-   - Dropdown in composer: Gemini 2.5 Flash (default, fast) / Gemini 2.5 Pro (smart) / GPT-5 (reasoning)
-   - Persist per-thread; show which model answered each message
+## Technical approach
 
-## Batch 2 — Projects + Memory (next turn, on request)
-4. **Projects**: group threads under a project with shared system prompt + files
-5. **Persistent memory**: model extracts user facts into a `memories` table, injected into every system prompt
-6. **File uploads**: PDFs/images attached to messages, vision + doc parsing
-
-## Batch 3 — Polish (final turn, on request)
-7. Message editing + branching (fork conversation)
-8. Public shareable read-only chat links
-9. ⌘K command palette, slash commands, prompt library
-10. Voice input (Web Speech API)
-
-## Technical notes (Batch 1)
-- New table `artifacts` (id, thread_id, user_id, kind, title, content, version, created_at)
-- Extend `messages` with `model` column (text nullable)
-- `/api/chat` route: register tools with AI SDK `tool()` + `stopWhen: stepCountIs(50)`; web_search calls Gemini grounding, create_artifact writes to DB and returns id
-- New component `ArtifactPane` in chat layout, controlled by URL query param `?artifact=<id>`
-- Model selector: small `<Select>` in `PromptInput` footer, value stored in thread row (`model` column)
-
-## Out of scope for Batch 1
-- Auth for shared links (Batch 3)
-- File upload UI (Batch 2)
-- Memory extraction (Batch 2)
-
-Approving this plan runs Batch 1 only. I'll ping you to confirm before starting Batch 2.
+- New `src/lib/export.functions.ts` (auth-protected server functions):
+  - `buildProjectExport({ projectId })` / `buildThreadExport({ threadId })` — reads `projects`, `threads`, `messages`, `artifacts`, `thread_files` (downloading blobs from the `thread-files` bucket via signed reads), returns an array of `{ path, contentBase64 }` plus a manifest. Shared builder used by both export targets.
+  - `pushExportToGithub({ projectId, repo, private, subdir })` — calls the connector gateway (`connector-gateway.lovable.dev/github/...`, `GITHUB_API_KEY`, same pattern as the existing `github` tool): `GET /user`, `POST /user/repos` when missing, then `PUT /repos/:owner/:repo/contents/:path` per file (base64 content, `sha` when updating). Returns `html_url`.
+- Zipping happens client-side to keep the Worker light: add `fflate` and build the ZIP in the browser from the returned file list, then trigger a Blob download.
+- New `src/components/emergent/export-dialog.tsx` — one dialog with two tabs (Download / GitHub); wired into `chat-sidebar.tsx` project and thread dropdowns.
+- Binary safety: everything transfers base64 so PDFs and images survive the round trip; per-export cap of ~50MB with a clear error above that.
+- No schema changes needed.
