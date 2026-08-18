@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useRealtime } from "@/hooks/use-realtime";
+
 
 export const Route = createFileRoute("/_authenticated/workflows")({
   component: WorkflowsPage,
@@ -63,6 +65,8 @@ function WorkflowsPage() {
   const del = useServerFn(deleteWorkflowRun);
 
   const runsQ = useQuery({ queryKey: ["workflow-runs"], queryFn: () => list({}) });
+  useRealtime([{ table: "workflow_runs", keys: [["workflow-runs"]] }], "workflows");
+
 
   const [workflowKey, setWorkflowKey] = useState(WORKFLOWS[0].key);
   const [brief, setBrief] = useState("");

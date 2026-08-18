@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery } from "@tanstack/react-query";
+import { useRealtime } from "@/hooks/use-realtime";
+
 import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages } from "@/lib/chat.functions";
 import { PERSONAS } from "@/lib/personas";
@@ -107,6 +109,15 @@ export function ChatView({
     queryKey: ["thread-messages", threadId],
     queryFn: () => getMsgs({ data: { threadId } }),
   });
+
+  useRealtime(
+    [
+      { table: "thread_files", keys: [["thread-files", threadId]] },
+      { table: "artifacts", keys: [["artifact"]] },
+    ],
+    `thread-${threadId}`,
+  );
+
 
   const initialMessages = useMemo<UIMessage[]>(
     () => (messagesQ.data?.messages ?? []).map(toUIMessage),

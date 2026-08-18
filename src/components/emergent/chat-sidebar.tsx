@@ -62,7 +62,10 @@ import {
   FolderMinus,
   Download,
 } from "lucide-react";
-import { Workflow } from "lucide-react";
+import { Workflow, Users, ShieldCheck } from "lucide-react";
+import { getMyRole } from "@/lib/admin.functions";
+import { useRealtime } from "@/hooks/use-realtime";
+
 import { ProjectDialog, type ProjectFormValue } from "./project-dialog";
 import { ExportDialog, type ExportTarget } from "./export-dialog";
 
@@ -89,6 +92,18 @@ export function ChatSidebar() {
     queryKey: ["projects"],
     queryFn: () => listProjectsFn(),
   });
+  const roleFn = useServerFn(getMyRole);
+  const roleQ = useQuery({ queryKey: ["my-role"], queryFn: () => roleFn() });
+
+  useRealtime(
+    [
+      { table: "threads", keys: [["threads"]] },
+      { table: "projects", keys: [["projects"], ["threads"]] },
+    ],
+    "sidebar",
+  );
+
+
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -431,6 +446,21 @@ export function ChatSidebar() {
         >
           <Workflow className="h-4 w-4" /> Workflows
         </Link>
+        <Link
+          to="/leads"
+          className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-sidebar-accent"
+        >
+          <Users className="h-4 w-4" /> Leads
+        </Link>
+        {roleQ.data?.isAdmin && (
+          <Link
+            to="/admin"
+            className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-sidebar-accent"
+          >
+            <ShieldCheck className="h-4 w-4" /> Admin
+          </Link>
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent text-left">
