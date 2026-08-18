@@ -431,6 +431,21 @@ export function ChatSidebar() {
         >
           <Workflow className="h-4 w-4" /> Workflows
         </Link>
+        <Link
+          to="/leads"
+          className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-sidebar-accent"
+        >
+          <Users className="h-4 w-4" /> Leads
+        </Link>
+        {roleQ.data?.isAdmin && (
+          <Link
+            to="/admin"
+            className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-sidebar-accent"
+          >
+            <ShieldCheck className="h-4 w-4" /> Admin
+          </Link>
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent text-left">
