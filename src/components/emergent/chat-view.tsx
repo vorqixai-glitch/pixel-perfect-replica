@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery } from "@tanstack/react-query";
+import { useRealtime } from "@/hooks/use-realtime";
+
 import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages } from "@/lib/chat.functions";
 import { PERSONAS } from "@/lib/personas";
