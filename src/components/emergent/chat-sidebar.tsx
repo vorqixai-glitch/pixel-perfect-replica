@@ -92,6 +92,18 @@ export function ChatSidebar() {
     queryKey: ["projects"],
     queryFn: () => listProjectsFn(),
   });
+  const roleFn = useServerFn(getMyRole);
+  const roleQ = useQuery({ queryKey: ["my-role"], queryFn: () => roleFn() });
+
+  useRealtime(
+    [
+      { table: "threads", keys: [["threads"]] },
+      { table: "projects", keys: [["projects"], ["threads"]] },
+    ],
+    "sidebar",
+  );
+
+
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
