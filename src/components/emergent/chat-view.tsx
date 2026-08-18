@@ -108,6 +108,15 @@ export function ChatView({
     queryFn: () => getMsgs({ data: { threadId } }),
   });
 
+  useRealtime(
+    [
+      { table: "thread_files", keys: [["thread-files", threadId]] },
+      { table: "artifacts", keys: [["artifact"]] },
+    ],
+    `thread-${threadId}`,
+  );
+
+
   const initialMessages = useMemo<UIMessage[]>(
     () => (messagesQ.data?.messages ?? []).map(toUIMessage),
     [messagesQ.data],
