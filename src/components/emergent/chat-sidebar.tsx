@@ -62,7 +62,10 @@ import {
   FolderMinus,
   Download,
 } from "lucide-react";
-import { Workflow } from "lucide-react";
+import { Workflow, Users, ShieldCheck } from "lucide-react";
+import { getMyRole } from "@/lib/admin.functions";
+import { useRealtime } from "@/hooks/use-realtime";
+
 import { ProjectDialog, type ProjectFormValue } from "./project-dialog";
 import { ExportDialog, type ExportTarget } from "./export-dialog";
 
