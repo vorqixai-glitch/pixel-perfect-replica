@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useRealtime } from "@/hooks/use-realtime";
+
 
 export const Route = createFileRoute("/_authenticated/workflows")({
   component: WorkflowsPage,
