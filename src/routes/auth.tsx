@@ -13,8 +13,8 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign in — Emergent" },
-      { name: "description", content: "Sign in or create your Emergent account." },
+      { title: "Admin sign in — Emergent" },
+      { name: "description", content: "Private admin access to the Emergent workspace." },
     ],
   }),
   beforeLoad: async () => {
