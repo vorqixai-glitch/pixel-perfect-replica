@@ -148,7 +148,7 @@ export function buildTools(ctx: ToolCtx) {
       execute: async ({ url }) => {
         try {
           const res = await fetch(url, {
-            headers: { "User-Agent": "Mozilla/5.0 EmergentBot/1.0" },
+            headers: { "User-Agent": "Mozilla/5.0 vorqix.aiBot/1.0" },
           });
           if (!res.ok) return { error: `HTTP ${res.status}`, url };
           const ct = res.headers.get("content-type") ?? "";

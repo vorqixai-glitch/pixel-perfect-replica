@@ -17,13 +17,13 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
   head: () => ({
     meta: [
-      { title: "Admin console — Emergent" },
+      { title: "Admin console — vorqix.ai" },
       {
         name: "description",
         content:
-          "Admin console for Emergent: usage stats, user roles, and recent activity across the workspace.",
+          "Admin console for vorqix.ai: usage stats, user roles, and recent activity across the workspace.",
       },
-      { property: "og:title", content: "Admin console — Emergent" },
+      { property: "og:title", content: "Admin console — vorqix.ai" },
       {
         property: "og:description",
         content: "Usage stats, user roles, and recent activity across the workspace.",

@@ -22,13 +22,13 @@ export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
   head: () => ({
     meta: [
-      { title: "Leads CRM — Emergent" },
+      { title: "Leads CRM — vorqix.ai" },
       {
         name: "description",
         content:
           "Track prospects your agents find: score, status, notes, and contact details in one live CRM.",
       },
-      { property: "og:title", content: "Leads CRM — Emergent" },
+      { property: "og:title", content: "Leads CRM — vorqix.ai" },
       {
         property: "og:description",
         content: "Score, status, notes, and contacts for every prospect your agents find.",

@@ -31,7 +31,7 @@ function ChatEmpty() {
         <div className="mx-auto mb-4 h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
           <Sparkles className="h-6 w-6 text-primary" />
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome to Emergent</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Welcome to vorqix.ai</h1>
         <p className="mt-2 text-muted-foreground">
           Start a new thread to talk with the AI. Your conversations are saved automatically.
         </p>
