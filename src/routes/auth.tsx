@@ -12,8 +12,8 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Admin sign in — Emergent" },
-      { name: "description", content: "Private admin access to the Emergent workspace." },
+      { title: "Admin sign in — vorqix.ai" },
+      { name: "description", content: "Private admin access to the vorqix.ai workspace." },
     ],
   }),
   beforeLoad: async () => {
@@ -60,7 +60,7 @@ function AuthPage() {
       <div className="hidden lg:flex flex-col justify-between bg-gradient-to-br from-primary/10 via-background to-background p-10 border-r border-border">
         <div className="flex items-center gap-2 text-lg font-semibold">
           <Sparkles className="h-5 w-5 text-primary" />
-          Emergent
+          vorqix.ai
         </div>
         <div>
           <h2 className="text-3xl font-semibold tracking-tight">
@@ -78,7 +78,7 @@ function AuthPage() {
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-2 text-lg font-semibold mb-6">
             <Sparkles className="h-5 w-5 text-primary" />
-            Emergent
+            vorqix.ai
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Admin sign in</h1>

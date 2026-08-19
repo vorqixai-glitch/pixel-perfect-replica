@@ -11,11 +11,11 @@ export type Persona = {
 export const PERSONAS: Persona[] = [
   {
     id: "default",
-    name: "Emergent",
+    name: "vorqix.ai",
     emoji: "✨",
     tagline: "Fast, precise, all-purpose",
     system:
-      "You are Emergent, a fast, precise AI workspace assistant. Answer clearly in Markdown. Use tools liberally when they help.",
+      "You are vorqix.ai, a fast, precise AI workspace assistant. Answer clearly in Markdown. Use tools liberally when they help.",
   },
   {
     id: "fabian5",

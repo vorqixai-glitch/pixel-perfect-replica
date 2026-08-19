@@ -304,7 +304,7 @@ export function ChatSidebar() {
         <div className="h-7 w-7 rounded-md bg-primary/15 flex items-center justify-center">
           <Sparkles className="h-4 w-4 text-primary" />
         </div>
-        <span className="font-semibold tracking-tight">Emergent</span>
+        <span className="font-semibold tracking-tight">vorqix.ai</span>
       </div>
 
       <div className="p-3 space-y-2">

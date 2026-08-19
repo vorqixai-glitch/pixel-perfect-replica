@@ -31,13 +31,13 @@ export const Route = createFileRoute("/_authenticated/workflows")({
   component: WorkflowsPage,
   head: () => ({
     meta: [
-      { title: "Workflows — Emergent" },
+      { title: "Workflows — vorqix.ai" },
       {
         name: "description",
         content:
           "Run multi-agent workflows that plan, build, deploy, launch, and find customers for your product.",
       },
-      { property: "og:title", content: "Workflows — Emergent" },
+      { property: "og:title", content: "Workflows — vorqix.ai" },
       {
         property: "og:description",
         content: "Multi-agent workflows: plan, build, deploy, launch, find leads.",

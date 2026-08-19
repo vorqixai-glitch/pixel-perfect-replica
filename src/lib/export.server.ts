@@ -280,7 +280,7 @@ export async function pushFilesToGithub(opts: {
         name: opts.repo,
         private: opts.isPrivate,
         auto_init: true,
-        description: "Exported from Emergent",
+        description: "Exported from vorqix.ai",
       },
     });
     if (!created.ok) {

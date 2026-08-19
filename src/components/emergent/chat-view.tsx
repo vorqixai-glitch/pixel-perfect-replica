@@ -416,7 +416,7 @@ function ChatViewInner({
                   handleSubmit();
                 }
               }}
-              placeholder="Message Emergent…"
+              placeholder="Message vorqix.ai…"
               rows={1}
               className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none"
             />
