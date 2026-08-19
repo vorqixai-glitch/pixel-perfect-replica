@@ -40,22 +40,8 @@ function AuthPage() {
     navigate({ to: "/chat" });
   }
 
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { display_name: displayName || email.split("@")[0] },
-      },
-    });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created. You're signed in.");
-    navigate({ to: "/chat" });
-  }
+
+
 
   async function handleGoogle() {
     setBusy(true);
