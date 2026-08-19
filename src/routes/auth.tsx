@@ -82,53 +82,28 @@ function AuthPage() {
             <Sparkles className="h-5 w-5 text-primary" />
             Emergent
           </div>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign in</TabsTrigger>
-              <TabsTrigger value="signup">Create account</TabsTrigger>
-            </TabsList>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Admin sign in</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This workspace is private. Sign in with the admin account.
+            </p>
+            <form className="space-y-3 mt-5" onSubmit={handleSignIn}>
+              <div className="space-y-1.5">
+                <Label htmlFor="si-email">Email</Label>
+                <Input id="si-email" type="email" required autoComplete="email"
+                  value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="si-pw">Password</Label>
+                <Input id="si-pw" type="password" required autoComplete="current-password"
+                  value={password} onChange={(e) => setPassword(e.target.value)} />
+              </div>
+              <Button type="submit" className="w-full" disabled={busy}>
+                {busy ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
+          </div>
 
-            <TabsContent value="signin">
-              <form className="space-y-3 mt-4" onSubmit={handleSignIn}>
-                <div className="space-y-1.5">
-                  <Label htmlFor="si-email">Email</Label>
-                  <Input id="si-email" type="email" required autoComplete="email"
-                    value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="si-pw">Password</Label>
-                  <Input id="si-pw" type="password" required autoComplete="current-password"
-                    value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={busy}>
-                  {busy ? "Signing in…" : "Sign in"}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <form className="space-y-3 mt-4" onSubmit={handleSignUp}>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-name">Display name</Label>
-                  <Input id="su-name" type="text"
-                    value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-email">Email</Label>
-                  <Input id="su-email" type="email" required autoComplete="email"
-                    value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-pw">Password</Label>
-                  <Input id="su-pw" type="password" required minLength={6} autoComplete="new-password"
-                    value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={busy}>
-                  {busy ? "Creating…" : "Create account"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
